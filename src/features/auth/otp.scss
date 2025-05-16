@@ -1,0 +1,75 @@
+.otp-form {
+    .otp-container {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+      gap: 8px;
+    }
+  
+    .otp-input {
+      width: 48px;
+      height: 48px;
+      border: 1px solid var(--input-border);
+      border-radius: 8px;
+      font-size: 1.25rem;
+      text-align: center;
+      background-color: var(--input-bg);
+      color: var(--input-text);
+      transition: all 0.3s;
+      
+      &:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.2);
+        outline: none;
+      }
+      
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+    }
+  
+    .timer-container {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+  
+    .verify-button {
+      background-color: var(--primary-color);
+      border-color: var(--primary-color);
+      height: 48px;
+      font-weight: 500;
+      
+      &:disabled {
+        opacity: 0.6;
+      }
+    }
+  
+    .resend-button {
+      &:disabled {
+        color: var(--input-placeholder);
+        cursor: not-allowed;
+      }
+    }
+  }
+  
+  // Dark mode adjustments
+  .dark {
+    .otp-input {
+      background-color: var(--input-bg);
+      color: var(--input-text);
+      border-color: var(--input-border);
+    }
+  }
+  
+  // Mobile responsiveness
+  @media (max-width: 480px) {
+    .otp-form {
+      .otp-input {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+      }
+    }
+  }
+  
