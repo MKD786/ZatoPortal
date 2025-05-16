@@ -1,0 +1,60 @@
+/* Custom styles for the drag and drop tables */
+.staff-table-container,
+.job-table-container {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+}
+
+.staff-table-container table,
+.job-table-container table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.staff-table-container th,
+.job-table-container th {
+  background-color: #fafafa;
+  font-weight: 500;
+  text-align: left;
+  padding: 12px;
+  border-bottom: 1px solid #f0f0f0;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.staff-table-container td,
+.job-table-container td {
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.staff-table-container tr:hover,
+.job-table-container tr:hover {
+  background-color: #fafafa;
+}
+
+/* Add styles for dragging states */
+.dragging {
+  opacity: 0.5;
+  cursor: grabbing !important;
+}
+
+.can-drop {
+  background-color: #f0f9eb !important;
+  transition: background-color 0.3s ease;
+}
+
+.job-table-container{
+    .ant-tag.ant-tag-success{
+        color: #FFFF;
+        background-color: #1a4e5f;
+    }
+}
+.staff-table-container{
+    .ant-tag.ant-tag-success{
+        color: #FFFF;
+        background-color: #1a4e5f;
+    }
+}

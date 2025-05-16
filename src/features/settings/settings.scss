@@ -1,0 +1,37 @@
+.classname-general {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+ 
+ 
+}
+ 
+.classname-general_form {
+    display: flex;
+    justify-content: center;
+    width: 100% !important;
+}
+ 
+.max-w-xl {
+    width: 100% !important;
+}
+// .ant-upload{
+// padding: 10px !important;
+// }
+.ant-upload-wrapper .ant-upload-drag .ant-upload{
+    padding: 9px;
+}
+.ant-form-item{
+margin-bottom: 10px;
+}
+.ant-upload-drag-icon{
+    margin-bottom: 10px !important;
+}
+.ant-tag.ant-tag-blue{
+  color: #FFFF;
+  background-color: dimgray;
+}
+.ant-upload-text{
+    font-size: small !important;
+}
+ 
