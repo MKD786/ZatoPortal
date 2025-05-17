@@ -55,6 +55,7 @@ const ClientQuestionaire = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedQuestion, setSelectedQuestion] = useState(null)
   const [activeTab, setActiveTab] = useState("all")
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Questionnaire metadata
   const questionnaireInfo = {
@@ -387,21 +388,46 @@ const ClientQuestionaire = () => {
     setIsModalOpen(true)
   }
   // Filter questions based on active tab
+  // const filteredSections = questionnaireSections  
+  //   .map((section) => {
+      
+
+  //     return {
+  //       ...section,
+  //       questions: section.questions.filter((q) => {
+  //         if (activeTab === "unanswered") return q.status === "unanswered"
+  //         if (activeTab === "draft") return q.status === "draft"
+  //         if (activeTab === "posted") return q.status === "posted"
+  //         return true
+  //       }),
+  //     }
+  //   })
+  //   .filter((section) => section.questions.length > 0)
   const filteredSections = questionnaireSections
     .map((section) => {
-      if (activeTab === "all") return section
+      const filteredQuestions = section.questions.filter((q) => {
+        const matchesTab =
+          activeTab === "all"
+          || (activeTab === "unanswered" && q.status === "unanswered")
+          || (activeTab === "draft" && q.status === "draft")
+          || (activeTab === "posted" && q.status === "posted");
+
+        const matchesSearch = q.text
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase());
+
+        return matchesTab && matchesSearch;
+      });
+
+      if (filteredQuestions.length === 0) return null; // Skip sections with no questions
 
       return {
         ...section,
-        questions: section.questions.filter((q) => {
-          if (activeTab === "unanswered") return q.status === "unanswered"
-          if (activeTab === "draft") return q.status === "draft"
-          if (activeTab === "posted") return q.status === "posted"
-          return true
-        }),
-      }
+        questions: filteredQuestions,
+      };
     })
-    .filter((section) => section.questions.length > 0)
+    .filter(Boolean); // Remove null sections
+
 
   const items = [
     { key: "all", label: `All Questions (${totalQuestions})` },
@@ -541,7 +567,7 @@ const ClientQuestionaire = () => {
       </div>
 
       {/* Filter Tabs */}
-      <div className="dark:bg-gray-900 dark:text-white"
+      {/* <div className="dark:bg-gray-900 dark:text-white"
         style={{
           borderBottom: "1px solid #f0f0f0",
           boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
@@ -551,17 +577,52 @@ const ClientQuestionaire = () => {
         <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "8px 24px" }}>
           <Tabs activeKey={activeTab} onChange={setActiveTab} items={items} />
         </div>
-      </div>
+      </div> */}
+<div>
+        <div
+          className="dark:bg-gray-900 dark:text-white"
+          style={{
+            borderBottom: "1px solid #f0f0f0",
+            boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+            marginBottom: "24px",
+          }}
+        >
+          <div
+            style={{
 
+              margin: "0 auto",
+              padding: "8px 24px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            {/* Tabs on the left */}
+            <Tabs activeKey={activeTab} onChange={setActiveTab} items={items} />
+
+            {/* Search bar on the right */}
+            <Input placeholder="Search Queries, etc." style={{ width: "250px" }} value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)} />
+
+          </div>
+        </div>
+      </div>
       {/* Main Content */}
       <div style={{ flex: 1, padding: "24px" }}>
-        <div style={{ margin: "0 auto" }}>
-          {filteredSections.map((section) => (
+  <div style={{ margin: "0 auto" }}>
+    {filteredSections.length === 0 ? (
+      <div style={{ textAlign: "center", color: "#999", padding: "48px 0" }}>
+        <Text type="secondary" style={{ fontSize: "18px" }}>
+          No data found
+        </Text>
+      </div>
+    ) : (
+      filteredSections.map((section) => (
             <div key={section.id} style={{ marginBottom: "32px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
                 <Title level={4} style={{ margin: 0 }}>{section.name}</Title>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <Progress percent={section.progress} style={{ width: "128px" }} size="small" strokeColor="#0f766e" />
+                  <Progress percent={section.progress} style={{ width: "128px" }} size="small" strokeColor="#0f766e" showInfo={false}/>
                   {/* <Text strong>{section.progress}%</Text> */}
                   {section.status === "completed" && (
                     <CheckCircleOutlined style={{ fontSize: "20px", color: "#52c41a" }} />
@@ -611,9 +672,7 @@ const ClientQuestionaire = () => {
                             {/* Submission info for posted questions */}
                             {question.status === "posted" && (
                               <>
-                                <Text type="secondary" style={{ fontSize: "12px" }}>
-                                  |
-                                </Text>
+                                <Text type="secondary" style={{ fontSize: "12px" }}> </Text>
                                 <div
                                   style={{
                                     display: "flex",
@@ -623,7 +682,7 @@ const ClientQuestionaire = () => {
                                   }}
                                 >
                                   <CalendarOutlined style={{ marginRight: "4px", fontSize: "12px" }} />
-                                  Submitted: {question?.submittedDate }
+                                  Submitted: {question?.submittedDate}
                                 </div>
                                 <Text type="secondary" style={{ fontSize: "12px" }}>
                                   |
@@ -658,12 +717,24 @@ const ClientQuestionaire = () => {
                               >
                                 {user_control.role === "client" ? "Edit Draft" : "View Draft"}
                               </Button>
-                              <Button disabled={user_control.role !== "client"} type="primary" icon={<CheckCircleOutlined />} style={{ background: "#0f766e", color: user_control.role !== "client" ? "#d9d9d9" : "#fff" }}>
+                              <Button 
+                              disabled={user_control.role !== "client"} 
+                              type="primary" 
+                              icon={<CheckCircleOutlined />} 
+                              style={{ 
+                                background: "#0f766e",
+                                 color: user_control.role !== "client" ? "#d9d9d9" : "#fff",
+                                 }}
+                                 >
                                 Post
                               </Button>
                             </>
                           ) : (
-                            <Button disabled={user_control.role !== "client"} icon={<EditOutlined />} onClick={() => handleOpenQuestion(section.id, question.id)}>
+                            <Button 
+                            disabled={user_control.role !== "client"} 
+                            icon={<EditOutlined />} 
+                            onClick={() => handleOpenQuestion(section.id, question.id)}
+                            >
                               Answer
                             </Button>
                           )}
@@ -698,9 +769,15 @@ const ClientQuestionaire = () => {
                             <div className="dark:bg-gray-900 dark:text-white">
                               <Text strong>Data:</Text>
                               <div style={{ marginTop: "4px", padding: "8px", borderRadius: "4px" }}>
-                                <table className="dark:bg-gray-900 dark:text-white" style={{ width: "100%", fontSize: "14px" }}>
+                                <table
+                                 className="dark:bg-gray-900 dark:text-white"
+                                  style={{ width: "100%", fontSize: "14px" }}
+                                  >
                                   <thead>
-                                    <tr className="dark:bg-gray-900 dark:text-white" style={{ textAlign: "left", fontSize: "12px" }}>
+                                    <tr 
+                                    className="dark:bg-gray-900 dark:text-white" 
+                                    style={{ textAlign: "left", fontSize: "12px" }}
+                                    >
                                       <th style={{ paddingBottom: "4px" }}>Description</th>
                                       <th style={{ paddingBottom: "4px" }}>Amount</th>
                                       <th style={{ paddingBottom: "4px" }}>Account Code</th>
@@ -711,7 +788,7 @@ const ClientQuestionaire = () => {
                                       <tr key={idx} style={{ borderTop: "1px solid #f0f0f0" }}>
                                         <td style={{ padding: "4px 0" }}>{row.description}</td>
                                         <td style={{ padding: "4px 0", fontWeight: 500 }}>{row.amount}</td>
-                                        <td className="dark:bg-gray-900 dark:text-white" style={{ padding: "4px 0"}}>
+                                        <td className="dark:bg-gray-900 dark:text-white" style={{ padding: "4px 0" }}>
                                           {row.accountCode}
                                         </td>
                                       </tr>
@@ -754,7 +831,8 @@ const ClientQuestionaire = () => {
                 </div>
               ))}
             </div>
-          ))}
+          ))
+        )}
         </div>
       </div>
 
