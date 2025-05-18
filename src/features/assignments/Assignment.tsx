@@ -1,37 +1,11 @@
-"use client"
-
 import type React from "react"
 import { useState, useRef } from "react"
-import {
-  SearchOutlined,
-  FilterOutlined,
-  UploadOutlined,
-  DownloadOutlined,
-  CheckOutlined,
-  CloseOutlined,
-  EditOutlined,
-} from "@ant-design/icons";
+import { SearchOutlined, FilterOutlined, UploadOutlined, DownloadOutlined, CheckOutlined, CloseOutlined, EditOutlined,} from "@ant-design/icons";
 import './assignment.scss';
-import {
-  Button,
-  Input,
-  Dropdown,
-  Menu,
-  Modal,
-  Tabs,
-  Tooltip,
-  Progress,
-  Checkbox,
-  Table,
-  Tag,
-  Card,
-  Space,
-  message,
-} from "antd"
+import { Button, Input, Dropdown, Menu, Modal, Tabs, Tooltip, Progress, Checkbox, Table, Tag, Card, Space, message } from "antd";
 import { DndProvider, useDrag, useDrop } from "react-dnd"
 import { HTML5Backend } from "react-dnd-html5-backend"
 
-// Types
 type Role = "Director" | "Manager" | "Accountant" | "Special Role" | "Admin" | "Super Admin"
 type JobStatus = "Unassigned" | "Assigned" | "Pending"
 type FilterState = "all" | "unmapped" | "mapped" // For staff
