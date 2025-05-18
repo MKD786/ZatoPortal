@@ -244,63 +244,101 @@ const QueryHubNew = () => {
   //     }
   //   })
   //   .filter((section) => section.questions.length > 0)
-  const filteredSections = questionnaireSections
-    .map((section) => {
-      if (activeTab === "all") {
-        // Filter questions by search query only
-        return {
-          ...section,
-          questions: section.questions.filter((q) => {
-            // Check if question matches search
-            const query = searchQuery.toLowerCase();
+  // const filteredSections = questionnaireSections
+  //   .map((section) => {
+  //     if (activeTab === "all") {
+  //       // Filter questions by search query only
+  //       return {
+  //         ...section,
+  //         questions: section.questions.filter((q) => {
+  //           // Check if question matches search
+  //           const query = searchQuery.toLowerCase();
 
-            const matchesSearch =
-              q.text.toLowerCase().includes(query) ||
-              (q.files &&
-                q.files.some(
-                  (file) =>
-                    file.name.toLowerCase().includes(query) ||
-                    (file.category && file.category.toLowerCase().includes(query)) ||
-                    (file.explanation && file.explanation.toLowerCase().includes(query))
-                ));
+  //           const matchesSearch =
+  //             q.text.toLowerCase().includes(query) ||
+  //             (q.files &&
+  //               q.files.some(
+  //                 (file) =>
+  //                   file.name.toLowerCase().includes(query) ||
+  //                   (file.category && file.category.toLowerCase().includes(query)) ||
+  //                   (file.explanation && file.explanation.toLowerCase().includes(query))
+  //               ));
 
-            return matchesSearch;
-          }),
-        };
-      }
+  //           return matchesSearch;
+  //         }),
+  //       };
+  //     }
 
-      // For other activeTab filters, also add search filtering inside questions filter
-      return {
-        ...section,
-        questions: section.questions.filter((q) => {
-          // First filter by activeTab status
-          let statusMatch = false;
-          if (activeTab === "unanswered") statusMatch = q.status === "unanswered";
-          else if (activeTab === "draft") statusMatch = q.status === "draft";
-          else if (activeTab === "posted") statusMatch = q.status === "posted";
-          else statusMatch = true;
+  //     // For other activeTab filters, also add search filtering inside questions filter
+  //     return {
+  //       ...section,
+  //       questions: section.questions.filter((q) => {
+  //         // First filter by activeTab status
+  //         let statusMatch = false;
+  //         if (activeTab === "unanswered") statusMatch = q.status === "unanswered";
+  //         else if (activeTab === "draft") statusMatch = q.status === "draft";
+  //         else if (activeTab === "posted") statusMatch = q.status === "posted";
+  //         else statusMatch = true;
 
-          if (!statusMatch) return false;
+  //         if (!statusMatch) return false;
 
-          // Then filter by search query
-          const query = searchQuery.toLowerCase();
+  //         // Then filter by search query
+  //         const query = searchQuery.toLowerCase();
 
-          const matchesSearch =
-            q.text.toLowerCase().includes(query) ||
-            (q.files &&
-              q.files.some(
-                (file) =>
-                  file.name.toLowerCase().includes(query) ||
-                  (file.category && file.category.toLowerCase().includes(query)) ||
-                  (file.explanation && file.explanation.toLowerCase().includes(query))
-              ));
+  //         const matchesSearch =
+  //           q.text.toLowerCase().includes(query) ||
+  //           (q.files &&
+  //             q.files.some(
+  //               (file) =>
+  //                 file.name.toLowerCase().includes(query) ||
+  //                 (file.category && file.category.toLowerCase().includes(query)) ||
+  //                 (file.explanation && file.explanation.toLowerCase().includes(query))
+  //             ));
 
-          return matchesSearch;
-        }),
-      };
-    })
-    .filter((section) => section.questions.length > 0);
+  //         return matchesSearch;
+  //       }),
+  //     };
+  //   })
+  //   .filter((section) => section.questions.length > 0);
+const filteredSections = questionnaireSections
+  .map((section) => {
+    const filteredQuestions = section.questions.filter((q) => {
+      // Tab filter
+      let statusMatch = false;
+      if (activeTab === "all") statusMatch = true;
+      else if (activeTab === "unanswered") statusMatch = q.status === "unanswered";
+      else if (activeTab === "draft") statusMatch = q.status === "draft";
+      else if (activeTab === "posted") statusMatch = q.status === "posted";
+      else statusMatch = true;
 
+      if (!statusMatch) return false;
+
+      // Search filter
+      const query = searchQuery.toLowerCase();
+      const matchesSearch =
+        q.text.toLowerCase().includes(query) ||
+        (q.files &&
+          q.files.some(
+            (file) =>
+              file.name.toLowerCase().includes(query) ||
+              (file.category && file.category.toLowerCase().includes(query)) ||
+              (file.explanation && file.explanation.toLowerCase().includes(query))
+          ));
+
+      if (!matchesSearch) return false;
+
+      // Date filter
+      if (selectedDate && q.date !== selectedDate) return false;
+
+      return true;
+    });
+
+    return {
+      ...section,
+      questions: filteredQuestions,
+    };
+  })
+  .filter((section) => section.questions.length > 0);
   const user_control = JSON.parse(sessionStorage.getItem("user") || "{}")
   const items = [
     { key: "all", label: `All Queries (${totalQuestions})` },
@@ -427,8 +465,8 @@ const QueryHubNew = () => {
       {/* Sticky Top-Right Filter */}
       <div
         style={{
-          position: "sticky",
-          top: 0,
+          position: "absolute",
+          top: 66,
           right: 0,
           zIndex: 20,
           background: "white",
