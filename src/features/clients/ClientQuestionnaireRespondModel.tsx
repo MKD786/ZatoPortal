@@ -57,21 +57,21 @@ const glCodes = [
   "9500 - Other Expenses",
 ]
 interface FileInfo {
-  file: File | null;  
-  name: string;      
-  id: string;        
+  file: File | null;
+  name: string;
+  id: string;
 }
 interface TableRow {
   description: string;
   amount: string;
   accountCode: string;
-  file:FileInfo | null;
+  file: FileInfo | null;
   category: string;
 }
 
-const ClientQuestionnaireRespondModel = ({ isOpen, onClose, question, onSave, onPost }: { 
-  isOpen: boolean; 
-  onClose: () => void; 
+const ClientQuestionnaireRespondModel = ({ isOpen, onClose, question, onSave, onPost }: {
+  isOpen: boolean;
+  onClose: () => void;
   question: any;
   onSave: (question: any) => void;
   onPost: (question: any) => void;
@@ -120,7 +120,7 @@ const ClientQuestionnaireRespondModel = ({ isOpen, onClose, question, onSave, on
     }
   }, [question])
 
- const handleFileUpload = (info: any) => {
+  const handleFileUpload = (info: any) => {
     setIsEditing(true);
     const originFile = info.fileList;
     originFile.forEach((file: any) => {
@@ -129,10 +129,10 @@ const ClientQuestionnaireRespondModel = ({ isOpen, onClose, question, onSave, on
         name: file.name,
         category: "",
         id: file.uid,
-      };      
+      };
       setFiles([...files, newFile]);
     })
-    console.log(originFile,"originFile")
+    console.log(originFile, "originFile")
   };
 
   const handleFileCategory = (id: string, category: string) => {
@@ -206,7 +206,7 @@ const ClientQuestionnaireRespondModel = ({ isOpen, onClose, question, onSave, on
   const handleSaveAsDraft = async () => {
     try {
       setIsSubmitting(true)
-      
+
       const formattedFiles = files.map(file => ({
         name: file.name,
         category: file.category || "Other",
@@ -244,7 +244,7 @@ const ClientQuestionnaireRespondModel = ({ isOpen, onClose, question, onSave, on
   const handlePostQuestion = async () => {
     try {
       setIsSubmitting(true)
-      
+
       const formattedFiles = files.map(file => ({
         name: file.name,
         category: file.category || "Other",
@@ -448,8 +448,8 @@ const ClientQuestionnaireRespondModel = ({ isOpen, onClose, question, onSave, on
       ),
     },
   ]
-  
-// Simplified modal rendering
+
+  // Simplified modal rendering
   return (
     <Modal
       open={isOpen}
@@ -806,8 +806,8 @@ const ClientQuestionnaireRespondModel = ({ isOpen, onClose, question, onSave, on
           <Button onClick={onClose} disabled={isSubmitting}>Cancel</Button>
           {!isPosted && (
             <>
-              <Button 
-                onClick={handleSaveAsDraft} 
+              <Button
+                onClick={handleSaveAsDraft}
                 disabled={(!isEditing && !isDraft) || user_control?.role !== "client" || isSubmitting}
                 loading={isSubmitting}
               >

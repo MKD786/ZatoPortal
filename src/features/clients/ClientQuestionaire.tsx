@@ -401,7 +401,7 @@ const ClientQuestionaire = () => {
 
   // Added new handler functions for state management
   const handleSaveAllDrafts = () => {
-    const hasDraftableQuestions = questionnaireSections.some(section => 
+    const hasDraftableQuestions = questionnaireSections.some(section =>
       section.questions.some(q => q.status === "unanswered" && q.answered)
     )
 
@@ -432,7 +432,7 @@ const ClientQuestionaire = () => {
   }
 
   const handlePostAllDrafts = () => {
-    const hasDraftQuestions = questionnaireSections.some(section => 
+    const hasDraftQuestions = questionnaireSections.some(section =>
       section.questions.some(q => q.status === "draft")
     )
 
@@ -721,243 +721,255 @@ const ClientQuestionaire = () => {
         </div>
       </div>
 
-      {/* Main Content New:Main content area #*/}                             
+      {/* Main Content */}
       <div style={{ flex: 1, padding: "24px" }}>
         <div style={{ margin: "0 auto" }}>
           {filteredSections.map(section => (
-  <div key={section.id} style={{ marginBottom: "32px" }}>
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-  <Title level={4} style={{ margin: 0 }}>
-    {section.name}
-  </Title>
-  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-    {section.questions.map((question) => (
-      <div key={question.id} style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-        <Progress 
-          percent={question.progress} 
-          size="small" 
-          strokeColor={
-            question.progress === 100 
-              ? "#0f766e" 
-              : question.progress > 0 
-                ? "#faad14" 
-                : "#d9d9d9"
-          }
-          style={{ width: '80px', marginLeft: '8px' }}
-        />
-        {question.progress === 100 && (
-          <CheckCircleOutlined style={{ fontSize: "16px", color: "#0f766e" }} />
-        )}
-        {question.progress > 0 && question.progress < 100 && (
-          <ClockCircleOutlined style={{ fontSize: "16px", color: "#faad14" }} />
-        )}
-        {question.progress === 0 && (
-          <ExclamationCircleOutlined style={{ fontSize: "16px", color: "#d9d9d9" }} />
-        )}
-      </div>
-    ))}
-  </div>
-</div>
-
-    {section.questions.map(question => (
-      <div key={question.id} style={{ marginBottom: "16px" }}>
-        <Card>
-          <div style={{ padding: "8px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <div style={{ flex: 1 }}>
-                <Paragraph>
-                  <Text strong>{question.number}</Text> {question.text}
-                </Paragraph>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "8px" }}>
-                  <Badge
-                    status={
-                      question.progress === 100
-                        ? "success"
-                        : question.progress > 0
-                          ? "warning"
-                          : "default"
-                    }
-                    text={
-                      question.progress === 100
-                        ? "Posted"
-                        : question.progress > 0
-                          ? "Draft"
-                          : "Unanswered"
-                    }
-                  />
-                  <Text type="secondary" style={{ fontSize: "12px" }}>
-                    {question.type === "yesno" && "Yes/No Question"}
-                    {question.type === "file" && "File Upload"}
-                    {question.type === "text" && "Text Response"}
-                    {question.type === "table" && "Tabular Data"}
-                  </Text>
-
-                  {/* Submission info for posted questions */}
-                  {question.progress === 100 && (
-                    <>
-                      <Text type="secondary" style={{ fontSize: "12px" }}>
-                        |
-                      </Text>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          fontSize: "12px",
-                          color: "rgba(0, 0, 0, 0.45)",
-                        }}
-                      >
-                        <CalendarOutlined style={{ marginRight: "4px", fontSize: "12px" }} />
-                        Submitted: {question?.submittedDate}
-                      </div>
-                      <Text type="secondary" style={{ fontSize: "12px" }}>
-                        |
-                      </Text>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          fontSize: "12px",
-                          color: "rgba(0, 0, 0, 0.45)",
-                        }}
-                      >
-                        <UserOutlined style={{ marginRight: "4px", fontSize: "12px" }} />
-                        By: {question.submittedBy}
-                      </div>
-                    </>
-                  )}
-                </div>
+            <div key={section.id} style={{ marginBottom: "32px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                <Title level={4} style={{ margin: 0 }}>
+                  {section.name}
+                </Title>
               </div>
 
-              {/* Action buttons moved to the top right */}
-              <div style={{ display: "flex", gap: "8px", marginLeft: "16px" }}>
-                {question.progress === 100 ? (
-                  <Button icon={<EyeOutlined />} onClick={() => handleOpenQuestion(section.id, question.id)}>
-                    View Only
-                  </Button>
-                ) : question.progress > 0 ? (
-                  <>
-                    <Button
-                      icon={<EditOutlined />}
-                      onClick={() => handleOpenQuestion(section.id, question.id)}
-                    >
-                      Edit Draft
-                    </Button>
-                    <Button
-                      disabled={user_control.role !== "client"}
-                      type="primary"
-                      icon={<CheckCircleOutlined />}
-                      style={{
-                        background: "#0f766e",
-                        color: user_control.role !== "client" ? "#d9d9d9" : "#fff",
-                      }}
-                      onClick={() => handlePostSingleQuestion(section.id, question.id)}
-                    >
-                      Post
-                    </Button>
-                  </>
-                ) : (
-                  <Button
-                    disabled={user_control.role !== "client"}
-                    icon={<EditOutlined />}
-                    onClick={() => handleOpenQuestion(section.id, question.id)}
-                  >
-                    Answer
-                  </Button>
-                )}
-              </div>
-            </div>
+              {section.questions.map(question => (
+                <div key={question.id} style={{ marginBottom: "16px" }}>
 
-            <Divider style={{ margin: "12px 0" }} />
+                  <div style={{ position: "relative", padding: "8px 0" }}>
 
-            {/* Answer content */}
-            {question.progress === 0 ? (
-              <Text type="secondary" italic>
-                No response provided yet
-              </Text>
-            ) : (
-              <div style={{ fontSize: "14px" }} className="dark:bg-gray-900 dark:text-white">
-                {/* Yes/No Answer */}
-                {question.type === "yesno" && question.answer && (
-                  <div className="dark:bg-gray-900 dark:text-white">
-                    <Text strong>Answer:</Text> {question.answer}
-                  </div>
-                )}
+                    <div style={{
+                      position: "absolute",
+                      top: "-22px",
+                      right: "0px",
+                      zIndex: 1,
+                      padding: "4px 8px",
+                      borderRadius: "4px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px"
+                    }}>
+                      <Progress
+                        percent={question.progress}
+                        size="small"
+                        strokeColor={
+                          question.progress === 100
+                            ? "#0f766e"
+                            : question.progress > 0
+                              ? "#faad14"
+                              : "#d9d9d9"
+                        }
+                        style={{ width: '80px' }}
+                      />
 
-                {/* Text Answer */}
-                {question.type === "text" && question.textAnswer && (
-                  <div>
-                    <Text strong>Response:</Text> {question.textAnswer}
-                  </div>
-                )}
-
-                {/* Tabular Data */}
-                {question.tableData && question.tableData.length > 0 && (
-                  <div className="dark:bg-gray-900 dark:text-white">
-                    <Text strong>Data:</Text>
-                    <div style={{ marginTop: "4px", padding: "8px", borderRadius: "4px" }}>
-                      <table
-                        className="dark:bg-gray-900 dark:text-white"
-                        style={{ width: "100%", fontSize: "14px" }}
-                      >
-                        <thead>
-                          <tr
-                            className="dark:bg-gray-900 dark:text-white"
-                            style={{ textAlign: "left", fontSize: "12px" }}
-                          >
-                            <th style={{ paddingBottom: "4px" }}>Description</th>
-                            <th style={{ paddingBottom: "4px" }}>Amount</th>
-                            <th style={{ paddingBottom: "4px" }}>Account Code</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {question.tableData.map((row, idx) => (
-                            <tr key={idx} style={{ borderTop: "1px solid #f0f0f0" }}>
-                              <td style={{ padding: "4px 0" }}>{row.description}</td>
-                              <td style={{ padding: "4px 0", fontWeight: 500 }}>{row.amount}</td>
-                              <td className="dark:bg-gray-900 dark:text-white" style={{ padding: "4px 0" }}>
-                                {row.accountCode}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                      {question.progress === 100 && (
+                        <CheckCircleOutlined style={{ fontSize: "16px", color: "#0f766e" }} />
+                      )}
+                      {question.progress > 0 && question.progress < 100 && (
+                        <ClockCircleOutlined style={{ fontSize: "16px", color: "#faad14" }} />
+                      )}
+                      {question.progress === 0 && (
+                        <ExclamationCircleOutlined style={{ fontSize: "16px", color: "#d9d9d9" }} />
+                      )}
                     </div>
-                  </div>
-                )}
+                    <Card>
+                      <div style={{ padding: "8px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                          <div style={{ flex: 1 }}>
+                            <Paragraph style={{ margin: 0 }}>
+                              <Text strong>{question.number}</Text> {question.text}
+                            </Paragraph>
 
-                {/* Files */}
-                {question.files && question.files.length > 0 && (
-                  <div
-                    style={{ marginTop: question.tableData && question.tableData.length > 0 ? "12px" : "0" }}
-                  >
-                    <Text strong>Files:</Text>
-                    <div style={{ marginTop: "4px", display: "flex", flexDirection: "column", gap: "4px" }}>
-                      {question.files.map((file, idx) => (
-                        <div
-                          key={idx}
-                          style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px" }}
-                        >
-                          <PaperClipOutlined style={{ fontSize: "12px", color: "#bfbfbf" }} />
-                          <Text style={{ color: "#1890ff" }}>{file.name}</Text>
-                          <Tag style={{ fontSize: "small" }}>{file.category}</Tag>
-                          {file.explanation && (
-                            <Tooltip title={file.explanation}>
-                              <InfoCircleOutlined style={{ fontSize: "12px", color: "#bfbfbf" }} />
-                            </Tooltip>
-                          )}
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "8px" }}>
+                              <Badge
+                                status={
+                                  question.progress === 100
+                                    ? "success"
+                                    : question.progress > 0
+                                      ? "warning"
+                                      : "default"
+                                }
+                                text={
+                                  question.progress === 100
+                                    ? "Posted"
+                                    : question.progress > 0
+                                      ? "Draft"
+                                      : "Unanswered"
+                                }
+                              />
+                              <Text type="secondary" style={{ fontSize: "12px" }}>
+                                {question.type === "yesno" && "Yes/No Question"}
+                                {question.type === "file" && "File Upload"}
+                                {question.type === "text" && "Text Response"}
+                                {question.type === "table" && "Tabular Data"}
+                              </Text>
+
+                              {/* Submission info for posted questions */}
+                              {question.progress === 100 && (
+                                <>
+                                  <Text type="secondary" style={{ fontSize: "12px" }}>
+                                    |
+                                  </Text>
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      fontSize: "12px",
+                                      color: "rgba(0, 0, 0, 0.45)",
+                                    }}
+                                  >
+                                    <CalendarOutlined style={{ marginRight: "4px", fontSize: "12px" }} />
+                                    Submitted: {question?.submittedDate}
+                                  </div>
+                                  <Text type="secondary" style={{ fontSize: "12px" }}>
+                                    |
+                                  </Text>
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      fontSize: "12px",
+                                      color: "rgba(0, 0, 0, 0.45)",
+                                    }}
+                                  >
+                                    <UserOutlined style={{ marginRight: "4px", fontSize: "12px" }} />
+                                    By: {question.submittedBy}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Action buttons moved to the top right */}
+                          <div style={{ display: "flex", gap: "8px", marginLeft: "16px" }}>
+                            {question.progress === 100 ? (
+                              <Button icon={<EyeOutlined />} onClick={() => handleOpenQuestion(section.id, question.id)}>
+                                View Only
+                              </Button>
+                            ) : question.progress > 0 ? (
+                              <>
+                                <Button
+                                  icon={<EditOutlined />}
+                                  onClick={() => handleOpenQuestion(section.id, question.id)}
+                                >
+                                  Edit Draft
+                                </Button>
+                                <Button
+                                  disabled={user_control.role !== "client"}
+                                  type="primary"
+                                  icon={<CheckCircleOutlined />}
+                                  style={{
+                                    background: "#0f766e",
+                                    color: user_control.role !== "client" ? "#d9d9d9" : "#fff",
+                                  }}
+                                  onClick={() => handlePostSingleQuestion(section.id, question.id)}
+                                >
+                                  Post
+                                </Button>
+                              </>
+                            ) : (
+                              <Button
+                                disabled={user_control.role !== "client"}
+                                icon={<EditOutlined />}
+                                onClick={() => handleOpenQuestion(section.id, question.id)}
+                              >
+                                Answer
+                              </Button>
+                            )}
+                          </div>
                         </div>
-                      ))}
-                    </div>
+
+                        <Divider style={{ margin: "12px 0" }} />
+
+                        {/* Answer content */}
+                        {question.progress === 0 ? (
+                          <Text type="secondary" italic>
+                            No response provided yet
+                          </Text>
+                        ) : (
+                          <div style={{ fontSize: "14px" }} className="dark:bg-gray-900 dark:text-white">
+                            {/* Yes/No Answer */}
+                            {question.type === "yesno" && question.answer && (
+                              <div className="dark:bg-gray-900 dark:text-white">
+                                <Text strong>Answer:</Text> {question.answer}
+                              </div>
+                            )}
+
+                            {/* Text Answer */}
+                            {question.type === "text" && question.textAnswer && (
+                              <div>
+                                <Text strong>Response:</Text> {question.textAnswer}
+                              </div>
+                            )}
+
+                            {/* Tabular Data */}
+                            {question.tableData && question.tableData.length > 0 && (
+                              <div className="dark:bg-gray-900 dark:text-white">
+                                <Text strong>Data:</Text>
+                                <div style={{ marginTop: "4px", padding: "8px", borderRadius: "4px" }}>
+                                  <table
+                                    className="dark:bg-gray-900 dark:text-white"
+                                    style={{ width: "100%", fontSize: "14px" }}
+                                  >
+                                    <thead>
+                                      <tr
+                                        className="dark:bg-gray-900 dark:text-white"
+                                        style={{ textAlign: "left", fontSize: "12px" }}
+                                      >
+                                        <th style={{ paddingBottom: "4px" }}>Description</th>
+                                        <th style={{ paddingBottom: "4px" }}>Amount</th>
+                                        <th style={{ paddingBottom: "4px" }}>Account Code</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {question.tableData.map((row, idx) => (
+                                        <tr key={idx} style={{ borderTop: "1px solid #f0f0f0" }}>
+                                          <td style={{ padding: "4px 0" }}>{row.description}</td>
+                                          <td style={{ padding: "4px 0", fontWeight: 500 }}>{row.amount}</td>
+                                          <td className="dark:bg-gray-900 dark:text-white" style={{ padding: "4px 0" }}>
+                                            {row.accountCode}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Files */}
+                            {question.files && question.files.length > 0 && (
+                              <div
+                                style={{ marginTop: question.tableData && question.tableData.length > 0 ? "12px" : "0" }}
+                              >
+                                <Text strong>Files:</Text>
+                                <div style={{ marginTop: "4px", display: "flex", flexDirection: "column", gap: "4px" }}>
+                                  {question.files.map((file, idx) => (
+                                    <div
+                                      key={idx}
+                                      style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px" }}
+                                    >
+                                      <PaperClipOutlined style={{ fontSize: "12px", color: "#bfbfbf" }} />
+                                      <Text style={{ color: "#1890ff" }}>{file.name}</Text>
+                                      <Tag style={{ fontSize: "small" }}>{file.category}</Tag>
+                                      {file.explanation && (
+                                        <Tooltip title={file.explanation}>
+                                          <InfoCircleOutlined style={{ fontSize: "12px", color: "#bfbfbf" }} />
+                                        </Tooltip>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </Card>
                   </div>
-                )}
-              </div>
-            )}
-          </div>
-        </Card>
-      </div>
-    ))}
-  </div>
-))}
+                </div>
+              ))}
+            </div>
+          ))}
         </div>
       </div>
 
@@ -985,16 +997,16 @@ const ClientQuestionaire = () => {
             </Text>
           </div>
           <Space>
-            <Button 
-              disabled={user_control.role !== "client" || activeTab !== "unanswered"} 
+            <Button
+              disabled={user_control.role !== "client" || activeTab !== "unanswered"}
               onClick={handleSaveAllDrafts}
             >
               Save All Drafts
             </Button>
-            <Button 
-              className="disabled:opacity-50 disabled:cursor-not-allowed disabled:text-zinc-900" 
-              disabled={user_control.role !== "client" || activeTab !== "draft"} 
-              type="primary" 
+            <Button
+              className="disabled:opacity-50 disabled:cursor-not-allowed disabled:text-zinc-900"
+              disabled={user_control.role !== "client" || activeTab !== "draft"}
+              type="primary"
               style={{ background: "#0f766e" }}
               onClick={handlePostAllDrafts}
             >
@@ -1004,10 +1016,10 @@ const ClientQuestionaire = () => {
         </div>
       </div>
 
-      {/* Respond Modal   #*/}
-      <ClientQuestionnaireRespondModel 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
+      {/* Respond Modal */}
+      <ClientQuestionnaireRespondModel
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
         question={selectedQuestion}
         onSave={handleSaveQuestion}
         onPost={handlePostQuestion}
@@ -1016,3 +1028,8 @@ const ClientQuestionaire = () => {
   )
 }
 export default ClientQuestionaire;
+
+
+
+
+
