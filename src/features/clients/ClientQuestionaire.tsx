@@ -58,15 +58,15 @@ const ClientQuestionaire = () => {
   const [searchTerm, setSearchTerm] = useState("");
 
   // Questionnaire metadata
-  const questionnaireInfo = {
-    clientName: " Sample Client",
-    type: "General Questionnaire",
-    fiscalYear: "1 April 20XX to 31 March 20XX",
-    dueDate: "30 April 20XX",
-    assignedManager: "Jane Smith",
-    status: "In Progress",
-    lastUpdated: "15 April 20XX",
-  }
+  // const questionnaireInfo = {
+  //   clientName: " Sample Client",
+  //   type: "General Questionnaire",
+  //   fiscalYear: "1 April 20XX to 31 March 20XX",
+  //   dueDate: "30 April 20XX",
+  //   assignedManager: "Jane Smith",
+  //   status: "In Progress",
+  //   lastUpdated: "15 April 20XX",
+  // }
 
   const questionnaireSections: QuestionnaireSection[] = [
     {
@@ -869,7 +869,11 @@ const ClientQuestionaire = () => {
       </div>
 
       {/* Respond Modal */}
-      <ClientQuestionnaireRespondModel isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} question={selectedQuestion} />
+      <ClientQuestionnaireRespondModel isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} question={selectedQuestion} onSave={function (): void {
+        throw new Error("Function not implemented.");
+      } } onPost={function (): void {
+        throw new Error("Function not implemented.");
+      } } />
     </div>
   )
 }

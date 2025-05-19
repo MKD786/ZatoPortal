@@ -73,15 +73,15 @@ const QueryHubNew = () => {
   const [searchQuery, setSearchQuery] = useState("");
 
 
-  const questionnaireInfo = {
-    clientName: " Sample Client",
-    type: "Queries",
-    fiscalYear: "1 April 20XX to 31 March 20XX",
-    dueDate: "30 April 20XX",
-    assignedManager: "Jane Smith",
-    status: "In Progress",
-    lastUpdated: "15 April 20XX",
-  }
+  // const questionnaireInfo = {
+  //   clientName: " Sample Client",
+  //   type: "Queries",
+  //   fiscalYear: "1 April 20XX to 31 March 20XX",
+  //   dueDate: "30 April 20XX",
+  //   assignedManager: "Jane Smith",
+  //   status: "In Progress",
+  //   lastUpdated: "15 April 20XX",
+  // }
 
   // Add dates to the questions
   const questionnaireSections: QuestionnaireSection[] = [
@@ -879,10 +879,13 @@ const QueryHubNew = () => {
 
         {/* Respond Modal */}
         <ClientQuestionnaireRespondModel
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          question={selectedQuestion}
-        />
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        question={selectedQuestion} onSave={function (): void {
+          throw new Error("Function not implemented.")
+        } } onPost={function (): void {
+          throw new Error("Function not implemented.")
+        } }        />
       </div>
       )
 }

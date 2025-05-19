@@ -9,7 +9,7 @@ import {
   CalendarOutlined,
   UserOutlined,
 } from "@ant-design/icons"
-import { Button, Input, Radio, Select, Modal, Badge, Space, Typography, Divider, Upload, Table, Form, Card } from "antd"
+import { Button, Input, Radio, Select, Modal, Badge, Space, Typography, Divider, Upload, Table, Form, Card, message } from "antd"
 
 const { TextArea } = Input
 const { Text, Title } = Typography
@@ -69,7 +69,13 @@ interface TableRow {
   category: string;
 }
 
-const ClientQuestionnaireRespondModel = ({ isOpen, onClose, question }: { isOpen: boolean; onClose: () => void; question: any }) => {
+const ClientQuestionnaireRespondModel = ({ isOpen, onClose, question, onSave, onPost }: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  question: any;
+  onSave: (question: any) => void;
+  onPost: (question: any) => void;
+}) => {
   const user_control = JSON.parse(sessionStorage.getItem("user") || "{}")
   const [files, setFiles] = useState<{
     file: File
@@ -101,14 +107,15 @@ const ClientQuestionnaireRespondModel = ({ isOpen, onClose, question }: { isOpen
     daysAvailable: "",
   })
   const [isEditing, setIsEditing] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Reset form when question changes
   useEffect(() => {
     if (question) {
-      setFiles([])
-      setTableRows([{ description: "", amount: "", accountCode: "", file: null, category: "" }])
-      setYesNoAnswer("no")
-      setTextAnswer("")
+      setFiles(question.files || [])
+      setTableRows(question.tableData || [{ description: "", amount: "", accountCode: "", file: null, category: "" }])
+      setYesNoAnswer(question.answer || "no")
+      setTextAnswer(question.textAnswer || "")
       setIsEditing(false)
     }
   }, [question])
@@ -121,7 +128,6 @@ const ClientQuestionnaireRespondModel = ({ isOpen, onClose, question }: { isOpen
         file: file, // Now TypeScript knows it's a File
         name: file.name,
         category: "",
-        // id: Math.random().toString(36).substring(7),
         id: file.uid,
       };      
       setFiles([...files, newFile]);
@@ -197,17 +203,80 @@ const ClientQuestionnaireRespondModel = ({ isOpen, onClose, question }: { isOpen
     })
   }
 
-  const handleSaveAsDraft = () => {
-    // In a real application, this would send data to the server
-    alert("Response saved as draft.")
-    onClose()
+  const handleSaveAsDraft = async () => {
+    try {
+      setIsSubmitting(true)
+      
+      const formattedFiles = files.map(file => ({
+        name: file.name,
+        category: file.category || "Other",
+        explanation: fileExplanations[file.id] || "",
+      }))
+
+      const filteredTableData = tableRows.filter(
+        row => row.description && row.amount && row.accountCode
+      )
+
+      const updatedQuestion = {
+        ...question,
+        answer: yesNoAnswer,
+        textAnswer,
+        files: formattedFiles,
+        tableData: filteredTableData,
+        answered: true,
+        status: "draft",
+        progress: 50,
+        submittedDate: new Date().toLocaleDateString(),
+        submittedBy: user_control?.name || "Current User",
+      }
+
+      onSave(updatedQuestion)
+      message.success("Question saved as draft!")
+      onClose()
+    } catch (err) {
+      console.error("Error saving draft:", err)
+      message.error("Failed to save draft")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  const handlePostQuestion = () => {
-    // In a real application, this would send data to the server
-    // and update the question status to "posted"
-    alert("Question has been posted and can no longer be edited.")
-    onClose()
+  const handlePostQuestion = async () => {
+    try {
+      setIsSubmitting(true)
+      
+      const formattedFiles = files.map(file => ({
+        name: file.name,
+        category: file.category || "Other",
+        explanation: fileExplanations[file.id] || "",
+      }))
+
+      const filteredTableData = tableRows.filter(
+        row => row.description && row.amount && row.accountCode
+      )
+
+      const updatedQuestion = {
+        ...question,
+        answer: yesNoAnswer,
+        textAnswer,
+        files: formattedFiles,
+        tableData: filteredTableData,
+        answered: true,
+        status: "posted",
+        progress: 100,
+        submittedDate: new Date().toLocaleDateString(),
+        submittedBy: user_control?.name || "Current User",
+      }
+
+      onPost(updatedQuestion)
+      message.success("Question posted successfully!")
+      onClose()
+    } catch (err) {
+      console.error("Error posting question:", err)
+      message.error("Failed to post question")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   if (!question) {
@@ -255,14 +324,11 @@ const ClientQuestionnaireRespondModel = ({ isOpen, onClose, question }: { isOpen
       dataIndex: "explanation",
       key: "explanation",
       render: (_: string, record: any) => (
-        <>
-        {console.log(record, "record")}
         <Input
           placeholder="Optional explanation"
           value={fileExplanations[record?.id] || ""}
           onChange={(e) => handleFileExplanation(record?.id, e.target.value)}
         />
-        </>
       ),
     },
     {
@@ -331,7 +397,7 @@ const ClientQuestionnaireRespondModel = ({ isOpen, onClose, question }: { isOpen
             showUploadList={false}
             onChange={(info) => handleTableRowFile(index, info)}
           >
-            <Button icon={<UploadOutlined />}><>{console.log(record, "record")}{record && record?.file ? "Change" : "Upload (Optional)"}</></Button>
+            <Button icon={<UploadOutlined />}>{record && record?.file ? "Change" : "Upload (Optional)"}</Button>
           </Upload>
           {record?.file && (
             <span
@@ -382,7 +448,8 @@ const ClientQuestionnaireRespondModel = ({ isOpen, onClose, question }: { isOpen
       ),
     },
   ]
-  console.log("tableRows", files)
+  
+// Simplified modal rendering
   return (
     <Modal
       open={isOpen}
@@ -736,17 +803,22 @@ const ClientQuestionnaireRespondModel = ({ isOpen, onClose, question }: { isOpen
           </div>
         )}
         <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose} disabled={isSubmitting}>Cancel</Button>
           {!isPosted && (
             <>
-              <Button onClick={handleSaveAsDraft} disabled={(!isEditing && !isDraft) || user_control?.role !== "client"}>
+              <Button 
+                onClick={handleSaveAsDraft} 
+                disabled={(!isEditing && !isDraft) || user_control?.role !== "client" || isSubmitting}
+                loading={isSubmitting}
+              >
                 Save as Draft
               </Button>
               <Button
                 type="primary"
                 onClick={handlePostQuestion}
-                disabled={(!isEditing && !isDraft) || user_control?.role !== "client"}
+                disabled={(!isEditing && !isDraft) || user_control?.role !== "client" || isSubmitting}
                 style={{ background: user_control?.role !== "client" ? "#E2E8F0" : "rgb(15 91 109)", color: "white" }}
+                loading={isSubmitting}
               >
                 Post
               </Button>
