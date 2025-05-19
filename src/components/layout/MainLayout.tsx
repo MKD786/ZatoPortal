@@ -1,5 +1,3 @@
-"use client"
-
 import { useState, useEffect } from "react"
 import { Outlet, useLocation, useNavigate } from "react-router-dom"
 import { Layout, Avatar, Dropdown } from "antd"
@@ -37,10 +35,7 @@ const MainLayout = () => {
     // If the modal has been shown before, don't show it again
     if (localStorage.getItem("companyModalShown")) {
       return false
-    }
-
-    // Otherwise, show the modal
-    return true
+    }    return true
   })
 
   const navigate = useNavigate()
@@ -129,7 +124,6 @@ const MainLayout = () => {
 
   const user_control = JSON.parse(sessionStorage.getItem("user") || "{}")
   const routerName = useLocation().pathname
-
   return (
     <Layout className="min-h-screen">
       <Header className="header flex items-center justify-between px-4 md:px-6 py-0 h-14 md:h-16 z-10">
@@ -159,9 +153,8 @@ const MainLayout = () => {
         )}
 
         <div className="flex items-center gap-3 md:gap-4">
-          <div className="hidden md:block">{/* Search input removed for brevity */}</div>
+          <div className="hidden md:block"></div>
 
-          {/* Display the selected company name */}
           {selectedCompany && (
             <div className="flex items-center">
               <p className="text-white m-0">{selectedCompany}</p>
@@ -172,7 +165,6 @@ const MainLayout = () => {
           )}
 
           <ThemeToggle />
-
           <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
             <Avatar
               className="cursor-pointer"

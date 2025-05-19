@@ -13,7 +13,6 @@ import {
   ArrowLeftOutlined,
   ArrowRightOutlined,
   DeleteOutlined,
-  SearchOutlined,
 } from "@ant-design/icons"
 import {
   Button,
@@ -33,6 +32,7 @@ import {
   Radio,
   Table,
   Progress,
+  message,
 } from "antd"
 
 interface FileObject {
@@ -53,8 +53,8 @@ interface Question {
   text: string
   type: "yesno" | "file" | "table" | "text"
   answered: boolean
-  answer?: string 
-  textAnswer?: string 
+  answer?: string
+  textAnswer?: string
   status: "draft" | "posted" | "unanswered"
   submittedDate?: string
   submittedBy?: string
@@ -304,7 +304,7 @@ const QueryHubNew = () => {
     setFileList([])
     setTableData([])
   }
-const handlePenIconClick = (sectionId: string, questionId: string) => {
+  const handlePenIconClick = (sectionId: string, questionId: string) => {
     const section = questionnaireSections.find((s) => s.id === sectionId)
     const question = section?.questions.find((q) => q.id === questionId)
 
@@ -335,7 +335,7 @@ const handlePenIconClick = (sectionId: string, questionId: string) => {
   const handleDateFilter = (date: string | null) => {
     setSelectedDate(date)
   }
-const filteredSections = questionnaireSections
+  const filteredSections = questionnaireSections
     .map((section) => {
       const filteredQuestions = section.questions.filter((q) => {
         let statusMatch = false
@@ -466,7 +466,7 @@ const filteredSections = questionnaireSections
         resetResponseInputs(currentQuery.type)
       }
     } else {
-      alert("There are no unanswered queries to respond to.")
+      message.info("There are no unanswered queries to respond to.")
     }
   }
   const handlePreviousQuery = () => {
@@ -604,14 +604,14 @@ const filteredSections = questionnaireSections
         }
       }
 
-      alert("Response submitted successfully!")
+      message.success("Response submitted successfully!")
 
       // Move to the next query instead of closing the modal
       if (currentQueryIndex < allQueries.length - 1) {
         handleNextQuery()
       } else {
         handleCloseModal()
-        alert("All queries have been responded to!")
+        message.success("All queries have been responded to!")
       }
     }
   }
@@ -677,9 +677,9 @@ const filteredSections = questionnaireSections
       }
 
       if (action === "save") {
-        alert("Response saved as draft.")
+        message.success("Response saved as draft.")
       } else {
-        alert("Response posted successfully!")
+        message.success("Response posted successfully!")
       }
       handleCloseQuestionModal()
     }
@@ -755,43 +755,109 @@ const filteredSections = questionnaireSections
       }
 
       if (action === "save") {
-        alert("Response saved as draft.")
+        message.success("Response saved as draft.")
       } else {
-        alert("Response posted successfully!")
+        message.success("Response posted successfully!")
       }
       handleClosePenModal()
     }
   }
 
+  const handleSaveAllDrafts = () => {
+    const updatedSections = [...questionnaireSections]
+    let pendingQuestionsCount = 0
+
+    // Find all unanswered questions and update them to draft
+    updatedSections.forEach((section, sectionIndex) => {
+      section.questions.forEach((question, questionIndex) => {
+        if (question.status === "unanswered") {
+          pendingQuestionsCount++
+          // Update the question status to draft
+          updatedSections[sectionIndex].questions[questionIndex] = {
+            ...question,
+            status: "draft",
+            answered: true,
+            submittedDate: new Date().toISOString().split("T")[0],
+            submittedBy: user.name || "Current User",
+          }
+        }
+      })
+
+      // Update section progress
+      const totalSectionQuestions = section.questions.length
+      const answeredSectionQuestions = updatedSections[sectionIndex].questions.filter(
+        (q) => q.status === "draft" || q.status === "posted",
+      ).length
+      updatedSections[sectionIndex].progress = Math.round((answeredSectionQuestions / totalSectionQuestions) * 100)
+
+      // Update section status
+      if (updatedSections[sectionIndex].progress === 100) {
+        updatedSections[sectionIndex].status = "completed"
+      } else if (updatedSections[sectionIndex].progress > 0) {
+        updatedSections[sectionIndex].status = "partial"
+      } else {
+        updatedSections[sectionIndex].status = "pending"
+      }
+    })
+
+    // Update state
+    setQuestionnaireSections(updatedSections)
+
+    // Show success message
+    if (pendingQuestionsCount > 0) {
+      message.success(`${pendingQuestionsCount} pending questions saved as drafts successfully!`)
+    } else {
+      message.info("No pending questions to save as drafts.")
+    }
+  }
+
   // Function to handle post all drafts
   const handlePostAllDrafts = () => {
-    const updatedSections = questionnaireSections.map((section) => {
-      const updatedQuestions = section.questions.map((question) => {
+    // Create a deep copy of the questionnaire sections
+    const updatedSections = [...questionnaireSections]
+    let draftQuestionsCount = 0
+
+    // Find all draft questions and update them to posted
+    updatedSections.forEach((section, sectionIndex) => {
+      section.questions.forEach((question, questionIndex) => {
         if (question.status === "draft") {
-          return {
+          draftQuestionsCount++
+          // Update the question status to posted
+          updatedSections[sectionIndex].questions[questionIndex] = {
             ...question,
             status: "posted",
             submittedDate: new Date().toISOString().split("T")[0],
             submittedBy: user.name || "Current User",
           }
         }
-        return question
       })
 
-      return {
-        ...section,
-        questions: updatedQuestions,
+      // Update section progress (not strictly necessary since we're not changing answered status)
+      const totalSectionQuestions = section.questions.length
+      const answeredSectionQuestions = updatedSections[sectionIndex].questions.filter(
+        (q) => q.status === "draft" || q.status === "posted",
+      ).length
+      updatedSections[sectionIndex].progress = Math.round((answeredSectionQuestions / totalSectionQuestions) * 100)
+
+      // Update section status
+      if (updatedSections[sectionIndex].progress === 100) {
+        updatedSections[sectionIndex].status = "completed"
+      } else if (updatedSections[sectionIndex].progress > 0) {
+        updatedSections[sectionIndex].status = "partial"
+      } else {
+        updatedSections[sectionIndex].status = "pending"
       }
     })
 
+    // Update state
     setQuestionnaireSections(updatedSections)
 
-    // Update all section progress
-    updatedSections.forEach((section) => {
-      setTimeout(() => updateSectionProgress(section.id), 0)
-    })
-
-    alert("All drafts have been posted successfully!")
+    // Show success message
+    if (draftQuestionsCount > 0) {
+      message.success(`${draftQuestionsCount} draft questions posted successfully!`)
+    } else {
+      message.info("No draft questions to post.")
+    }
   }
 
   // Render the appropriate input based on question type
@@ -843,7 +909,10 @@ const filteredSections = questionnaireSections
                 showUploadList={false}
                 disabled={isViewOnly}
               >
-                <Button size="small" style={{ borderRadius: "4px", fontSize: "12px", height: "24px", padding: "0 8px" }}>
+                <Button
+                  size="small"
+                  style={{ borderRadius: "4px", fontSize: "12px", height: "24px", padding: "0 8px" }}
+                >
                   Browse Files
                 </Button>
               </Upload>
@@ -1056,7 +1125,10 @@ const filteredSections = questionnaireSections
                 fileList={[]}
                 showUploadList={false}
               >
-                <Button size="small" style={{ borderRadius: "4px", fontSize: "12px", height: "24px", padding: "0 8px" }}>
+                <Button
+                  size="small"
+                  style={{ borderRadius: "4px", fontSize: "12px", height: "24px", padding: "0 8px" }}
+                >
                   Browse Files
                 </Button>
               </Upload>
@@ -1519,7 +1591,6 @@ const filteredSections = questionnaireSections
                               {question.type === "text" && "Text Response"}
                               {question.type === "table" && "Tabular Data"}
                             </Text>
-
                             {/* Date display for all questions */}
                             <Text type="secondary" style={{ fontSize: "12px" }}>
                               |
@@ -1566,7 +1637,6 @@ const filteredSections = questionnaireSections
                           </div>
                         </div>
 
-                        {/* Action buttons moved to the top right */}
                         <div style={{ display: "flex", gap: "8px", marginLeft: "16px" }}>
                           {question.status === "posted" ? (
                             <>
@@ -1623,7 +1693,7 @@ const filteredSections = questionnaireSections
                                       // Update section progress
                                       setTimeout(() => updateSectionProgress(section.id), 0)
 
-                                      alert("Question posted successfully!")
+                                      message.success("Question posted successfully!")
                                     }
                                   }
                                 }}
@@ -1664,14 +1734,12 @@ const filteredSections = questionnaireSections
                         </Text>
                       ) : (
                         <div style={{ fontSize: "14px" }} className="dark:bg-gray-900 dark:text-white">
-                          {/* Yes/No Answer */}
                           {question.type === "yesno" && question.answer && (
                             <div className="dark:bg-gray-900 dark:text-white">
                               <Text strong>Answer:</Text> {question.answer}
                             </div>
                           )}
 
-                          {/* Text Answer */}
                           {question.type === "text" && question.textAnswer && (
                             <div>
                               <Text strong>Response:</Text> {question.textAnswer}
@@ -1773,10 +1841,15 @@ const filteredSections = questionnaireSections
             </Text>
           </div>
           <Space>
-            <Button disabled={user_control.role !== "client"}>Save All Drafts</Button>
+            <Button
+              disabled={user_control.role !== "client" || unansweredQuestions === 0}
+              onClick={handleSaveAllDrafts}
+            >
+              Save All Drafts
+            </Button>
             <Button
               className="disabled:opacity-50 disabled:cursor-not-allowed disabled:text-zinc-900"
-              disabled={user_control.role !== "client"}
+              disabled={user_control.role !== "client" || draftQuestions === 0}
               type="primary"
               style={{ background: "#0f766e" }}
               onClick={handlePostAllDrafts}
@@ -1786,8 +1859,6 @@ const filteredSections = questionnaireSections
           </Space>
         </div>
       </div>
-
-      {/* Edit Draft / Answer / View Only Modal */}
       <Modal
         title={null}
         open={isModalOpen}
@@ -1819,7 +1890,6 @@ const filteredSections = questionnaireSections
 
             {/* Content area */}
             <div>
-              {/* Section and Question Number */}
               <div
                 style={{
                   backgroundColor: "#f5f5f5",
@@ -1918,7 +1988,6 @@ const filteredSections = questionnaireSections
 
             {/* Content area */}
             <div>
-              {/* Query navigation */}
               <div
                 style={{
                   display: "flex",
@@ -2024,7 +2093,7 @@ const filteredSections = questionnaireSections
                 </Button>
                 <Button
                   onClick={() => {
-                    alert("Response saved as draft.")
+                    message.success("Response saved as draft.")
                     handleCloseModal()
                   }}
                   style={{
@@ -2217,7 +2286,10 @@ const filteredSections = questionnaireSections
                     fileList={[]}
                     showUploadList={false}
                   >
-                    <Button size="small" style={{ borderRadius: "4px", fontSize: "12px", height: "24px", padding: "0 8px" }}>
+                    <Button
+                      size="small"
+                      style={{ borderRadius: "4px", fontSize: "12px", height: "24px", padding: "0 8px" }}
+                    >
                       Browse Files
                     </Button>
                   </Upload>

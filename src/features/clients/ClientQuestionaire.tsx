@@ -526,7 +526,6 @@ const ClientQuestionaire = () => {
       setIsModalOpen(true)
     }
   }
-
   const handleOpenPenModal = (sectionId: string, questionId: string) => {
     const section = questionnaireSections.find((s) => s.id === sectionId)
     const question = section?.questions.find((q) => q.id === questionId)
@@ -565,7 +564,6 @@ const ClientQuestionaire = () => {
       setIsPenModalOpen(true)
     }
   }
-
   // Function to navigate to previous question in pen modal
   const handlePreviousPenQuestion = () => {
     if (currentPenQuestionIndex > 0) {
@@ -585,7 +583,6 @@ const ClientQuestionaire = () => {
             sectionName: section.name,
             sectionId: section.id,
           })
-
           // Reset response based on question type
           if (question.type === "yesno") {
             setResponse(question.answer || "")
@@ -686,8 +683,6 @@ const ClientQuestionaire = () => {
           return
         }
       }
-
-      // Fallback to the first unanswered query if loan statement query is not found
       const firstUnansweredQuery = unansweredQueries[0]
       const indexInAllQueries = allQueries.findIndex((q) => q.id === firstUnansweredQuery.id)
 
@@ -980,7 +975,6 @@ const ClientQuestionaire = () => {
   const handleRemoveTableRow = (key: string) => {
     setTableData(tableData.filter((row) => row.key !== key))
   }
-
   // Function to update a table row
   const handleTableRowChange = (key: string, field: keyof TableRow, value: string) => {
     setTableData(
@@ -1004,6 +998,107 @@ const ClientQuestionaire = () => {
   const handleFileDelete = (file: UploadFile) => {
     setFileList(fileList.filter((f) => f.uid !== file.uid))
     message.success(`File ${file.name} removed`)
+  }
+
+  // NEW FUNCTION: Save all pending questions as drafts
+  const handleSaveAllDrafts = () => {
+    // Create a deep copy of the questionnaire sections
+    const updatedSections = [...questionnaireSections]
+    let pendingQuestionsCount = 0
+
+    // Find all unanswered questions and update them to draft
+    updatedSections.forEach((section, sectionIndex) => {
+      section.questions.forEach((question, questionIndex) => {
+        if (question.status === "unanswered") {
+          pendingQuestionsCount++
+          // Update the question status to draft
+          updatedSections[sectionIndex].questions[questionIndex] = {
+            ...question,
+            status: "draft",
+            answered: true,
+            submittedDate: new Date().toLocaleDateString("en-US", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            }),
+            submittedBy: "Current User",
+          }
+        }
+      })
+      const totalSectionQuestions = section.questions.length
+      const answeredSectionQuestions = updatedSections[sectionIndex].questions.filter((q) => q.answered).length
+      updatedSections[sectionIndex].progress = Math.round((answeredSectionQuestions / totalSectionQuestions) * 100)
+
+      // Update section status
+      if (updatedSections[sectionIndex].progress === 100) {
+        updatedSections[sectionIndex].status = "completed"
+      } else if (updatedSections[sectionIndex].progress > 0) {
+        updatedSections[sectionIndex].status = "partial"
+      } else {
+        updatedSections[sectionIndex].status = "pending"
+      }
+    })
+
+    // Update state
+    setQuestionnaireSections(updatedSections)
+
+    // Show success message
+    if (pendingQuestionsCount > 0) {
+      message.success(`${pendingQuestionsCount} pending questions saved as drafts successfully!`)
+    } else {
+      message.info("No pending questions to save as drafts.")
+    }
+  }
+
+  // NEW FUNCTION: Post all draft questions
+  const handlePostAllDrafts = () => {
+    // Create a deep copy of the questionnaire sections
+    const updatedSections = [...questionnaireSections]
+    let draftQuestionsCount = 0
+
+    // Find all draft questions and update them to posted
+    updatedSections.forEach((section, sectionIndex) => {
+      section.questions.forEach((question, questionIndex) => {
+        if (question.status === "draft") {
+          draftQuestionsCount++
+          // Update the question status to posted
+          updatedSections[sectionIndex].questions[questionIndex] = {
+            ...question,
+            status: "posted",
+            submittedDate: new Date().toLocaleDateString("en-US", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            }),
+            submittedBy: "Current User",
+          }
+        }
+      })
+
+      // Update section progress (not strictly necessary since we're not changing answered status)
+      const totalSectionQuestions = section.questions.length
+      const answeredSectionQuestions = updatedSections[sectionIndex].questions.filter((q) => q.answered).length
+      updatedSections[sectionIndex].progress = Math.round((answeredSectionQuestions / totalSectionQuestions) * 100)
+
+      // Update section status
+      if (updatedSections[sectionIndex].progress === 100) {
+        updatedSections[sectionIndex].status = "completed"
+      } else if (updatedSections[sectionIndex].progress > 0) {
+        updatedSections[sectionIndex].status = "partial"
+      } else {
+        updatedSections[sectionIndex].status = "pending"
+      }
+    })
+
+    // Update state
+    setQuestionnaireSections(updatedSections)
+
+    // Show success message
+    if (draftQuestionsCount > 0) {
+      message.success(`${draftQuestionsCount} draft questions posted successfully!`)
+    } else {
+      message.info("No draft questions to post.")
+    }
   }
 
   const items = [
@@ -1458,12 +1553,18 @@ const ClientQuestionaire = () => {
             </Text>
           </div>
           <Space>
-            <Button disabled={user_control.role !== "client"}>Save All Drafts</Button>
+            <Button 
+              disabled={user_control.role !== "client" || unansweredQuestions === 0}
+              onClick={handleSaveAllDrafts}
+            >
+              Save All Drafts
+            </Button>
             <Button
               className="disabled:opacity-50 disabled:cursor-not-allowed disabled:text-zinc-900"
-              disabled={user_control.role !== "client"}
+              disabled={user_control.role !== "client" || draftQuestions === 0}
               type="primary"
               style={{ background: "#0f766e" }}
+              onClick={handlePostAllDrafts}
             >
               Post All Drafts
             </Button>
