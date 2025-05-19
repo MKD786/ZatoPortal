@@ -456,9 +456,9 @@ const ViewClients = () => {
   return (
     <Layout className="h-full bg-white dark:bg-gray-900 dark:text-white">
       {/* Top Navigation Tabs */}
-      <div className="border-b border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700">
+      <div className="border-b border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700 client-admin-tabs">
         <div className="flex items-center justify-between  mx-auto">
-          <Tabs activeKey={activeMainTab} onChange={handleMainTabChange} className="pl-4 flex-1">
+          <Tabs activeKey={activeMainTab} onChange={handleMainTabChange} className="pl-4 flex-1 mb-0">
             {visibleTabs.map((tab) => (
               <TabPane key={tab.hidden ? '' : tab.key} tab={tab.hidden ? '' : tab.label} />
             ))}
@@ -469,7 +469,7 @@ const ViewClients = () => {
       </div>
 
       {/* Main Layout */}
-      <Layout className="h-full bg-white view-clients-content dark:bg-gray-900 dark:text-white">
+      <Layout className="h-full bg-white view-clients-content dark:bg-gray-900 dark:text-white position-relative">
         {/* Left sidebar */}
         {user_control?.role !== "client" && (
           <Sider

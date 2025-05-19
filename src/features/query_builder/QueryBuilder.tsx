@@ -619,7 +619,6 @@ const QueryBuilder = () => {
                         <Text strong style={{ marginRight: 8, whiteSpace: "nowrap" }}>
                           Mid Job Query:
                         </Text>
-
                         <Button
                           type={activeMidjobQueryId === null ? "primary" : "default"}
                           size="small"

@@ -558,7 +558,7 @@ const handleClick = (key:any) => {
                                 </Form.Item>
                             </Col>
                             <Col span={8}>
-                                <Form.Item name="yearApplicability" label="Year Applicability">
+                                <Form.Item name="yearApplicability" label="Year Applicability" rules={[{ required: true, message: "Please select Year Applicability" }]}>
                                     <Select>
                                         <Option value="current year">Current Year</Option>
                                         <Option value="previous year">Previous Year</Option>
@@ -567,7 +567,7 @@ const handleClick = (key:any) => {
                                 </Form.Item>
                             </Col>
                             <Col span={8}>
-                                <Form.Item name="applicability" label="Applicability">
+                                <Form.Item name="applicability" label="Applicability" rules={[{ required: true, message: "Please select Applicability" }]}>
                                     <Select>
                                         {applicabilityOptions.map((option) => (
                                             <Option key={option.value} value={option.value}>

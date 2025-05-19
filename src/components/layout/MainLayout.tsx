@@ -139,6 +139,9 @@ const MainLayout = () => {
           {selectedCompany && (
             <div className="flex items-center">
               <p className="text-white m-0">{selectedCompany}</p>
+              <p className="text-[#c6cbd5] m-0 text-sm font-normal pl-2 ml-2 relative before:content-['|'] before:absolute before:left-0 before:text-white/30">
+                FY 25
+              </p>
             </div>
           )}
           <ThemeToggle />
@@ -169,15 +172,11 @@ const MainLayout = () => {
           )}
         </>
       ) : (
-        <>
           <ClientView />
-        </>
       )}
 
       <LogoutModal visible={logoutModalVisible} onCancel={hideLogoutModal} />
       <SettingsModal visible={settingsModalVisible} onCancel={hideSettingsModal} />
-
-
       <Footer
         className="fixed bottom-0 right-0 z-10 w-full text-end text-gray-500 dark:text-gray-400 p-0"
         style={{ padding: "0.3rem 0.5rem" }}
@@ -196,4 +195,3 @@ const MainLayout = () => {
 }
 
 export default MainLayout
-
