@@ -1,5 +1,3 @@
-"use client"
-
 import { useState, useEffect } from "react"
 import {
   EditOutlined,
@@ -66,7 +64,6 @@ interface Question {
   tableData?: TableRow[]
   date?: string
 }
-
 interface QuestionnaireSection {
   id: string
   name: string
@@ -74,14 +71,12 @@ interface QuestionnaireSection {
   status: "completed" | "partial" | "pending"
   questions: Question[]
 }
-
 interface UploadFile {
   uid: string
   name: string
   status?: string
   url?: string
 }
-
 interface QueryItem {
   id: string
   number: string
