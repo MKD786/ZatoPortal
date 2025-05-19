@@ -33,6 +33,8 @@ import {
   Radio,
   message,
 } from "antd"
+import { useSelector } from "react-redux"
+import { RootState } from "@/store"
 // import { useLocation } from "react-router-dom"
 
 interface FileObject {
@@ -101,6 +103,7 @@ const { Text, Title, Paragraph } = Typography
 const { TextArea } = Input
 
 const ClientQuestionaire = () => {
+  const user = useSelector((state: RootState) => state.auth.user)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isPenModalOpen, setIsPenModalOpen] = useState(false)
   const [selectedQuestion, setSelectedQuestion] = useState<any>(null)
@@ -757,6 +760,64 @@ const ClientQuestionaire = () => {
       }
     }
   }
+  const handleSaveAllDrafts = () => {
+    const updatedSections = [...questionnaireSections]
+    let pendingQuestionsCount = 0
+    updatedSections.forEach((section, sectionIndex) => {
+      section.questions.forEach((question, questionIndex) => {
+        if (question.status === "unanswered") {
+          pendingQuestionsCount++
+          updatedSections[sectionIndex].questions[questionIndex] = {
+            ...question,
+            status: "draft",
+            answered: true,
+            submittedDate: new Date().toISOString().split("T")[0],
+            submittedBy: user?.name || "Current User",
+          }
+        }
+      })
+      const totalSectionQuestions = section.questions.length
+      const answeredSectionQuestions = updatedSections[sectionIndex].questions.filter((q) => q.status === "draft" || q.status === "posted").length
+      updatedSections[sectionIndex].progress = Math.round((answeredSectionQuestions / totalSectionQuestions) * 100)
+      if (updatedSections[sectionIndex].progress === 100) {
+        updatedSections[sectionIndex].status = "completed"
+      } else if (updatedSections[sectionIndex].progress > 0) {
+        updatedSections[sectionIndex].status = "partial"
+      } else {
+        updatedSections[sectionIndex].status = "pending"
+      }
+    })
+    setQuestionnaireSections(updatedSections)
+    if (pendingQuestionsCount > 0) {
+      message.success(`${pendingQuestionsCount} pending questions saved as drafts successfully!`)
+    } else {
+      message.info("No pending questions to save as drafts.")
+    }
+  }
+
+  const handlePostAllDrafts = () => {
+    const updatedSections = [...questionnaireSections]
+    let draftQuestionsCount = 0
+    updatedSections.forEach((section, sectionIndex) => {
+      section.questions.forEach((question, questionIndex) => {
+        if (question.status === "draft") {
+          draftQuestionsCount++
+          updatedSections[sectionIndex].questions[questionIndex] = {
+            ...question,
+            status: "posted",
+            submittedDate: new Date().toISOString().split("T")[0],
+            submittedBy: user?.name || "Current User",
+          }
+        }
+      })
+    })
+    setQuestionnaireSections(updatedSections)
+    if (draftQuestionsCount > 0) {
+      message.success(`${draftQuestionsCount} draft questions posted successfully!`)
+    } else {
+      message.info("No draft questions to post.")
+    }
+  }
 
   // Function to close the modal
   const handleCloseModal = () => {
@@ -1076,7 +1137,7 @@ const ClientQuestionaire = () => {
 
       {/* Filter Tabs */}
       <div className="dark:bg-gray-900 dark:text-white" style={{ borderBottom: "1px solid #f0f0f0", boxShadow: "0 1px 2px rgba(0,0,0,0.05)", }}>
-        <div className="flex justify-between items-center query-hub-inner-tabs" style={{ margin: "0 auto", padding: "8px 24px"}}>
+        <div className="flex justify-between items-center query-hub-inner-tabs" style={{ margin: "0 auto", padding: "8px 24px" }}>
           <Tabs activeKey={activeTab} onChange={setActiveTab} items={items} />
           <div className="flex items-center gap-4 text-[#4A5568] text-[14px] pl-9">
             <Text style={{ whiteSpace: "nowrap" }}>Submitted: Apr 8, 2025</Text>
@@ -1397,12 +1458,13 @@ const ClientQuestionaire = () => {
             </Text>
           </div>
           <Space>
-            <Button disabled={user_control.role !== "client"}>Save All Drafts</Button>
+            <Button disabled={user_control.role !== "client"} onClick={handleSaveAllDrafts}>Save All Drafts</Button>
             <Button
               className="disabled:opacity-50 disabled:cursor-not-allowed disabled:text-zinc-900"
-              disabled={user_control.role !== "client"}
+              disabled={user_control.role !== "client" || draftQuestions === 0}
               type="primary"
               style={{ background: "#0f766e" }}
+              onClick={handlePostAllDrafts}
             >
               Post All Drafts
             </Button>
@@ -1643,13 +1705,7 @@ const ClientQuestionaire = () => {
                                 style={{ border: "none" }}
                               />
                             </td>
-                            <td
-                              style={{
-                                padding: "4px",
-                                border: "1px solid #e8e8e8",
-                                textAlign: "center",
-                              }}
-                            >
+                            <td style={{ padding: "4px", border: "1px solid #e8e8e8", textAlign: "center" }}>
                               <Button
                                 type="text"
                                 danger
@@ -1662,10 +1718,7 @@ const ClientQuestionaire = () => {
                         ))}
                         {tableData.length === 0 && (
                           <tr>
-                            <td
-                              colSpan={4}
-                              style={{ padding: "12px", textAlign: "center", border: "1px solid #e8e8e8" }}
-                            >
+                            <td colSpan={4} style={{ padding: "12px", textAlign: "center", border: "1px solid #e8e8e8" }}>
                               No data. Click "Add Row" to add data.
                             </td>
                           </tr>

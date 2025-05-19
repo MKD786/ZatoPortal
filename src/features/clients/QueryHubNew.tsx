@@ -32,6 +32,7 @@ import {
   Upload,
   Radio,
   Table,
+  message,
 } from "antd"
 
 interface FileObject {
@@ -118,8 +119,6 @@ const QueryHubNew = () => {
   const [allQueries, setAllQueries] = useState<QueryItem[]>([])
   const [unansweredQueries, setUnansweredQueries] = useState<QueryItem[]>([])
   const [tableData, setTableData] = useState<TableRow[]>([])
-
-
   // const questionnaireInfo = {
   //   clientName: " Sample Client",
   //   type: "Queries",
@@ -329,10 +328,48 @@ const QueryHubNew = () => {
     return dates.sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
   }
   const uniqueDates = getUniqueDates()
-
   const handleDateFilter = (date: string | null) => {
     setSelectedDate(date)
   }
+
+  const handleSaveAllDrafts = () => {
+    const updatedSections = [...questionnaireSections]
+    let pendingQuestionsCount = 0
+    updatedSections.forEach((section, sectionIndex) => {
+      section.questions.forEach((question, questionIndex) => {
+        if (question.status === "unanswered") {
+          pendingQuestionsCount++
+          updatedSections[sectionIndex].questions[questionIndex] = {
+            ...question,
+            status: "draft",
+            answered: true,
+            submittedDate: new Date().toISOString().split("T")[0],
+            submittedBy: user.name || "Current User",
+          }
+        }
+      })
+      const totalSectionQuestions = section.questions.length
+      const answeredSectionQuestions = updatedSections[sectionIndex].questions.filter(
+        (q) => q.status === "draft" || q.status === "posted",
+      ).length
+      updatedSections[sectionIndex].progress = Math.round((answeredSectionQuestions / totalSectionQuestions) * 100) 
+      if (updatedSections[sectionIndex].progress === 100) {
+        updatedSections[sectionIndex].status = "completed"
+      } else if (updatedSections[sectionIndex].progress > 0) {
+        updatedSections[sectionIndex].status = "partial"
+      } else {
+        updatedSections[sectionIndex].status = "pending"
+      }
+    })
+    setQuestionnaireSections(updatedSections)
+    if (pendingQuestionsCount > 0) {
+      message.success(`${pendingQuestionsCount} pending questions saved as drafts successfully!`)
+    } else {
+      message.info("No pending questions to save as drafts.")
+    }
+  }
+
+  
 
   // Filter questions based on active tab only
   // const filteredSections = questionnaireSections
@@ -778,34 +815,41 @@ const QueryHubNew = () => {
 
   // Function to handle post all drafts
   const handlePostAllDrafts = () => {
-    const updatedSections = questionnaireSections.map((section) => {
-      const updatedQuestions = section.questions.map((question) => {
+    const updatedSections = [...questionnaireSections]
+    let draftQuestionsCount = 0 
+    updatedSections.forEach((section, sectionIndex) => {
+      section.questions.forEach((question, questionIndex) => {
         if (question.status === "draft") {
-          return {
+          draftQuestionsCount++
+          updatedSections[sectionIndex].questions[questionIndex] = {
             ...question,
             status: "posted",
             submittedDate: new Date().toISOString().split("T")[0],
             submittedBy: user.name || "Current User",
           }
         }
-        return question
       })
-
-      return {
-        ...section,
-        questions: updatedQuestions,
+   const totalSectionQuestions = section.questions.length
+      const answeredSectionQuestions = updatedSections[sectionIndex].questions.filter(
+        (q) => q.status === "draft" || q.status === "posted",
+      ).length
+      updatedSections[sectionIndex].progress = Math.round((answeredSectionQuestions / totalSectionQuestions) * 100)
+      if (updatedSections[sectionIndex].progress === 100) {
+        updatedSections[sectionIndex].status = "completed"
+      } else if (updatedSections[sectionIndex].progress > 0) {
+        updatedSections[sectionIndex].status = "partial"
+      } else {
+        updatedSections[sectionIndex].status = "pending"
       }
-    })
-
-    setQuestionnaireSections(updatedSections as QuestionnaireSection[])
-
-    // Update all section progress
-    updatedSections.forEach((section) => {
-      setTimeout(() => updateSectionProgress(section.id), 0)
-    })
-
-    alert("All drafts have been posted successfully!")
+    }) 
+    setQuestionnaireSections(updatedSections)
+    if (draftQuestionsCount > 0) {
+      message.success(`${draftQuestionsCount} draft questions posted successfully!`)
+    } else {
+      message.info("No draft questions to post.")
+    }
   }
+ 
 
   // Render the appropriate input based on question type
   const renderQuestionInput = (type: string, mode: string) => {
@@ -1355,13 +1399,7 @@ const QueryHubNew = () => {
       </div>
 
       {/* Filter Tabs and Search */}
-      <div
-        className="dark:bg-gray-900 dark:text-white"
-        style={{
-          borderBottom: "1px solid #f0f0f0",
-          boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
-        }}
-      >
+      <div className="dark:bg-gray-900 dark:text-white " style={{ borderBottom: "1px solid #f0f0f0", boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
         <div style={{ margin: "0 auto", padding: "8px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", }}>
           <div className="flex justify-between items-center gap-4 w-full query-hub-inner-tabs">
             <Tabs activeKey={activeTab} onChange={setActiveTab} items={items} />
@@ -1738,22 +1776,13 @@ const QueryHubNew = () => {
       </div>
 
       {/* Footer */}
-      <div
-        style={{
-          padding: "16px",
-          background: "white",
-          borderTop: "1px solid #f0f0f0",
-          boxShadow: "0 -1px 2px rgba(0,0,0,0.05)",
-        }}
-      >
-        <div style={{ margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", }}>
-          <div>
-            <Text type="secondary">
+      <div className="p-4 bg-white border-t border-gray-200">
+        <div className="flex justify-between items-center w-full">
+          <div><Text type="secondary">
               {draftQuestions + postedQuestions} of {totalQuestions} questions answered ({overallProgress}% complete)
-            </Text>
-          </div>
+            </Text></div>
           <Space>
-            <Button disabled={user_control.role !== "client"}>Save All Drafts</Button>
+            <Button disabled={user_control.role !== "client"} onClick={handleSaveAllDrafts}>Save All Drafts</Button>
             <Button
               className="disabled:opacity-50 disabled:cursor-not-allowed disabled:text-zinc-900"
               disabled={user_control.role !== "client"}
