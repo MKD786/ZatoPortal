@@ -518,7 +518,7 @@ const ClientQuestionaire = () => {
 
       {/* Statistics Dashboard */}
       <div className="dark:bg-gray-900 dark:text-white" style={{ borderBottom: "1px solid #f0f0f0", boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
-        <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "24px" }}>
+        <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 1.5rem 1.5rem" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "24px" }}>
             <Card bordered={false} style={{ borderLeft: "4px solid #d9d9d9" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>

@@ -321,9 +321,7 @@ const QueryHubNew = () => {
   )
 
   return (
-    <div
-      className={`flex flex-col min-h-screen dark:bg-gray-900 dark:text-white bg-gray-50 ${user_control?.role === "client" ? "" : ""}`}
-    >
+    <div className={`flex flex-col min-h-screen dark:bg-gray-900 dark:text-white bg-gray-50 ${user_control?.role === "client" ? "" : ""}`}>
       {/* Header */}
       {user_control?.role === "client" && (
         <div
@@ -427,24 +425,22 @@ const QueryHubNew = () => {
       {/* Sticky Top-Right Filter */}
       <div
         style={{
-          position: "sticky",
-          top: 0,
+          position: "absolute",
+          top: "4.1rem",
           right: 0,
           zIndex: 20,
           background: "white",
-          padding: "8px 16px",
+          padding: "6px 16px",
           display: "flex",
           alignItems: "center",
-          gap: "8px",
-          float: "right",
           boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
           borderRadius: "0 0 0 8px",
           marginLeft: "auto",
-          marginBottom: "8px",
+          marginBottom: "0px",
           minWidth: "fit-content",
         }}
       >
-        <span style={{ whiteSpace: "nowrap", fontWeight: 500 }}>Mid Job query</span>
+        <span style={{ whiteSpace: "nowrap", fontWeight: 500, padding: "0 1rem" }}>Mid Job query</span>
         <Dropdown overlay={dateMenu} trigger={["click"]}>
           <Button
             icon={<FilterOutlined />}
@@ -464,10 +460,7 @@ const QueryHubNew = () => {
       </div>
 
       {/* Statistics Dashboard */}
-      <div
-        className="dark:bg-gray-900 dark:text-white"
-        style={{ borderBottom: "1px solid #f0f0f0", boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}
-      >
+      <div className="dark:bg-gray-900 dark:text-white" style={{ borderBottom: "1px solid #f0f0f0", boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
         <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "24px" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "24px" }}>
             <Card bordered={false} style={{ borderLeft: "4px solid #d9d9d9" }}>
@@ -517,36 +510,12 @@ const QueryHubNew = () => {
       </div>
 
       {/* Filter Tabs */}
-      <div
-        style={{
-
-          padding: "8px 24px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          // You can also increase gap here if needed
-          // gap: "48px", 
-        }}
-      >
+      <div style={{ padding: "8px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         {/* Left side: Horizontal Tabs */}
-        <div
-          style={{
-            flex: "1 1 auto",
-            marginRight: "48px"  // <-- increased margin between left and right
-          }}
-        >
-          <Tabs
-            activeKey={activeTab}
-            onChange={setActiveTab}
-            items={items}
-          />
+        <div style={{ flex: "1 1 auto", marginRight: "48px" }}>
+          <Tabs activeKey={activeTab} onChange={setActiveTab} items={items} />
           {selectedDate && (
-            <Tag
-              color="#0f766e"
-              closable
-              onClose={() => handleDateFilter(null)}
-              style={{ marginTop: "8px", display: "inline-block" }}
-            >
+            <Tag color="#0f766e" closable onClose={() => handleDateFilter(null)} style={{ marginTop: "8px", display: "inline-block" }}>
               Date:{" "}
               {new Date(selectedDate).toLocaleDateString("en-US", {
                 year: "numeric",
@@ -557,22 +526,8 @@ const QueryHubNew = () => {
           )}
         </div>
         {/* Right side: Search bar, text, filter button */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "16px",
-            flexShrink: 0,
-            flexWrap: "nowrap",
-          }}
-        >
-          <Input
-            placeholder="Search Queries, etc."
-            style={{ width: "250px", minWidth: "200px" }}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            allowClear
-          />
+        <div style={{ display: "flex", alignItems: "center", gap: "16px", flexShrink: 0, flexWrap: "nowrap" }}>
+          <Input placeholder="Search Queries, etc." style={{ width: "250px", minWidth: "200px" }} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} allowClear />
           <div>
           </div>
         </div>
@@ -590,14 +545,7 @@ const QueryHubNew = () => {
             ) : (
               filteredSections.map((section) => (
                 <div key={section.id} style={{ marginBottom: "25px" }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      marginBottom: "8px",
-                    }}
-                  >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
                     <Title level={4} style={{ margin: 0 }}>
                       {section.name}
                     </Title>
