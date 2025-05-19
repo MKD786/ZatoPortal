@@ -1,3 +1,5 @@
+"use client"
+
 import { useState, useEffect } from "react"
 import { Outlet, useLocation, useNavigate } from "react-router-dom"
 import { Layout, Avatar, Dropdown } from "antd"
@@ -19,19 +21,31 @@ import Settings from "../../features/settings/Settings"
 const { Header, Content } = Layout
 
 const MainLayout = () => {
-  const navigate = useNavigate()
-  const { theme } = useSelector((state: RootState) => state.theme)
   const [logoutModalVisible, setLogoutModalVisible] = useState(false)
   const [settingsModalVisible, setSettingsModalVisible] = useState(false)
+
   const [selectedCompany, setSelectedCompany] = useState<string>(() => {
     return localStorage.getItem("selectedCompany") || ""
   })
+
   const [settingsModalVisibleTwo, setSettingsModalVisibleTwo] = useState(() => {
+    // If we have a selected company, don't show the modal
     if (localStorage.getItem("selectedCompany")) {
       return false
     }
+
+    // If the modal has been shown before, don't show it again
+    if (localStorage.getItem("companyModalShown")) {
+      return false
+    }
+
+    // Otherwise, show the modal
     return true
   })
+
+  const navigate = useNavigate()
+  const { user } = useSelector((state: RootState) => state.auth)
+  const { theme } = useSelector((state: RootState) => state.theme)
 
   useEffect(() => {
     if (selectedCompany) {
@@ -65,13 +79,22 @@ const MainLayout = () => {
 
   const handleCompanySelect = (company: string) => {
     if (company) {
+      // Update state
       setSelectedCompany(company)
+
+      // Store in localStorage
       localStorage.setItem("selectedCompany", company)
+
+      // Mark the modal as shown to prevent it from showing again
+      // localStorage.setItem("companyModalShown", "true")
+
+      // Hide the modal
       hideSettingsModalTwo()
     }
   }
 
   const handleLogout = () => {
+    // Clear company selection on logout
     localStorage.removeItem("selectedCompany")
     setSelectedCompany("")
     showLogoutModal()
@@ -136,14 +159,27 @@ const MainLayout = () => {
         )}
 
         <div className="flex items-center gap-3 md:gap-4">
+          <div className="hidden md:block">{/* Search input removed for brevity */}</div>
+
+          {/* Display the selected company name */}
           {selectedCompany && (
             <div className="flex items-center">
               <p className="text-white m-0">{selectedCompany}</p>
+              <p className="text-[#c6cbd5] m-0 text-sm font-normal pl-2 ml-2 relative before:content-['|'] before:absolute before:left-0 before:text-white/30">
+                FY 25
+              </p>
             </div>
           )}
+
           <ThemeToggle />
+
           <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-            <Avatar className="cursor-pointer" size="small" icon={<UserOutlined />} style={{ backgroundColor: theme === "dark" ? "#4CCEEB" : "#0F5B6D", borderRadius: "5rem" }} />
+            <Avatar
+              className="cursor-pointer"
+              size="small"
+              icon={<UserOutlined />}
+              style={{ backgroundColor: theme === "dark" ? "#4CCEEB" : "#0F5B6D", borderRadius: "5rem" }}
+            />
           </Dropdown>
         </div>
       </Header>
@@ -164,19 +200,21 @@ const MainLayout = () => {
           ) : (
             <>
               <ViewClients />
-              <Settings visible={settingsModalVisibleTwo} onCancel={hideSettingsModalTwo} onSave={handleCompanySelect} defaultCompany={selectedCompany} />
+              <Settings
+                visible={settingsModalVisibleTwo}
+                onCancel={hideSettingsModalTwo}
+                onSave={handleCompanySelect}
+                defaultCompany={selectedCompany}
+              />
             </>
           )}
         </>
       ) : (
-        <>
-          <ClientView />
-        </>
+        <ClientView />
       )}
 
       <LogoutModal visible={logoutModalVisible} onCancel={hideLogoutModal} />
       <SettingsModal visible={settingsModalVisible} onCancel={hideSettingsModal} />
-
 
       <Footer
         className="fixed bottom-0 right-0 z-10 w-full text-end text-gray-500 dark:text-gray-400 p-0"
@@ -196,4 +234,3 @@ const MainLayout = () => {
 }
 
 export default MainLayout
-

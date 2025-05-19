@@ -1,51 +1,12 @@
 import React, { useState, useRef, useEffect } from "react"
-import {
-    Table,
-    Button,
-    Input,
-    Badge,
-    Switch,
-    Select,
-    Divider,
-    Modal,
-    Alert,
-    Progress,
-    Tooltip,
-    Dropdown,
-    Space,
-    Typography,
-    Form,
-    Card,
-    Row,
-    Col,
-    Upload,
-    message,
-} from "antd"
+import { Table, Button, Input, Badge, Switch, Select, Divider, Modal, Alert, Progress, Tooltip, Dropdown, Space, Typography, Form, Card, Row, Col, Upload, message,} from "antd"
 import type { UploadProps } from "antd"
-import {
-    EditOutlined,
-    MoreOutlined,
-    PlusOutlined,
-    SearchOutlined,
-    DeleteOutlined,
-    DownloadOutlined,
-    UploadOutlined,
-    ExclamationCircleOutlined,
-    BankOutlined,
-    HomeOutlined,
-    TeamOutlined,
-    UserOutlined,
-    HeartOutlined,
-    ArrowRightOutlined,
-    CalculatorOutlined,
-    SaveOutlined,
-} from "@ant-design/icons"
+import { EditOutlined, MoreOutlined, PlusOutlined, SearchOutlined, DeleteOutlined, DownloadOutlined, UploadOutlined, ExclamationCircleOutlined, BankOutlined, HomeOutlined, TeamOutlined, UserOutlined, HeartOutlined, ArrowRightOutlined, CalculatorOutlined, SaveOutlined,} from "@ant-design/icons"
 import type { ColumnsType } from "antd/es/table"
 import type { MenuProps } from "antd"
 import TextArea from "antd/es/input/TextArea";
 import './AddRule.scss';
 import { Building2, HeartHandshake, Landmark, User, Users } from "lucide-react"
-
 
 const entityTypeIcons = [
     {

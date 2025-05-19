@@ -1,3 +1,5 @@
+"use client"
+
 import { useState, useEffect } from "react"
 import {
   EditOutlined,
@@ -14,7 +16,8 @@ import {
   CloseOutlined,
   PlusOutlined,
   WarningOutlined,
-  LinkOutlined,
+  UploadOutlined,
+  MinusCircleOutlined,
 } from "@ant-design/icons"
 import {
   Button,
@@ -31,6 +34,8 @@ import {
   Modal,
   Upload,
   Radio,
+  Form,
+  message,
 } from "antd"
 
 interface FileObject {
@@ -43,6 +48,7 @@ interface TableRow {
   description: string
   amount: string
   accountCode: string
+  key?: string
 }
 
 interface Question {
@@ -105,7 +111,7 @@ const ClientQuestionaire = () => {
   const [isPenModalOpen, setIsPenModalOpen] = useState(false)
   const [selectedQuestion, setSelectedQuestion] = useState<any>(null)
   const [activeTab, setActiveTab] = useState("all")
-
+  const [searchTerm, setSearchTerm] = useState("")
   const [visible, setVisible] = useState(false)
   const [query, setQuery] = useState<QueryItem | null>(null)
   const [response, setResponse] = useState("")
@@ -114,18 +120,9 @@ const ClientQuestionaire = () => {
   const [allQueries, setAllQueries] = useState<QueryItem[]>([])
   const [unansweredQueries, setUnansweredQueries] = useState<QueryItem[]>([])
   const [currentPenQuestionIndex, setCurrentPenQuestionIndex] = useState(0)
-
-  const questionnaireInfo = {
-    clientName: " Sample Client",
-    type: "General Questionnaire",
-    fiscalYear: "1 April 20XX to 31 March 20XX",
-    dueDate: "30 April 20XX",
-    assignedManager: "Jane Smith",
-    status: "In Progress",
-    lastUpdated: "15 April 20XX",
-  }
-
-  const questionnaireSections: QuestionnaireSection[] = [
+  const [tableData, setTableData] = useState<TableRow[]>([])
+  const [form] = Form.useForm()
+  const [questionnaireSections, setQuestionnaireSections] = useState<QuestionnaireSection[]>([
     {
       id: "trading",
       name: "Trading Information",
@@ -434,7 +431,7 @@ const ClientQuestionaire = () => {
         },
       ],
     },
-  ]
+  ])
 
   const totalQuestions = questionnaireSections.reduce((acc, section) => acc + section.questions.length, 0)
 
@@ -516,16 +513,18 @@ const ClientQuestionaire = () => {
       setSelectedQuestion({
         ...question,
         sectionName: section.name,
+        sectionId: sectionId,
       })
 
       setFileList([])
+      setTableData(question.tableData || [])
 
       if (question.status === "draft" && question.files && question.files.length > 0) {
         const uploadFiles = question.files.map((file, index) => ({
           uid: `existing-${index}`,
           name: file.name,
           status: "done",
-          url: "#", 
+          url: "#",
         }))
         setFileList(uploadFiles)
       }
@@ -544,6 +543,7 @@ const ClientQuestionaire = () => {
       setSelectedQuestion({
         ...question,
         sectionName: section.name,
+        sectionId: sectionId,
       })
 
       if (question.type === "yesno") {
@@ -555,13 +555,14 @@ const ClientQuestionaire = () => {
       }
 
       setFileList([])
+      setTableData(question.tableData || [])
 
       if (question.files && question.files.length > 0) {
         const uploadFiles = question.files.map((file, index) => ({
           uid: `existing-${index}`,
           name: file.name,
           status: "done",
-          url: "#", 
+          url: "#",
         }))
         setFileList(uploadFiles)
       }
@@ -587,6 +588,7 @@ const ClientQuestionaire = () => {
           setSelectedQuestion({
             ...question,
             sectionName: section.name,
+            sectionId: section.id,
           })
 
           // Reset response based on question type
@@ -600,6 +602,7 @@ const ClientQuestionaire = () => {
 
           // Reset fileList
           setFileList([])
+          setTableData(question.tableData || [])
 
           // If it has files, add them to fileList
           if (question.files && question.files.length > 0) {
@@ -633,6 +636,7 @@ const ClientQuestionaire = () => {
           setSelectedQuestion({
             ...question,
             sectionName: section.name,
+            sectionId: section.id,
           })
 
           // Reset response based on question type
@@ -646,6 +650,7 @@ const ClientQuestionaire = () => {
 
           // Reset fileList
           setFileList([])
+          setTableData(question.tableData || [])
 
           // If it has files, add them to fileList
           if (question.files && question.files.length > 0) {
@@ -682,6 +687,7 @@ const ClientQuestionaire = () => {
           setVisible(true)
           setResponse("")
           setFileList([])
+          setTableData([])
           return
         }
       }
@@ -700,10 +706,11 @@ const ClientQuestionaire = () => {
         setVisible(true)
         setResponse("")
         setFileList([])
+        setTableData([])
       }
     } else {
       // If there are no unanswered queries, show a message
-      alert("There are no unanswered queries to respond to.")
+      message.info("There are no unanswered queries to respond to.")
     }
   }
 
@@ -725,6 +732,7 @@ const ClientQuestionaire = () => {
         })
         setResponse("")
         setFileList([])
+        setTableData([])
       }
     }
   }
@@ -747,6 +755,7 @@ const ClientQuestionaire = () => {
         })
         setResponse("")
         setFileList([])
+        setTableData([])
       }
     }
   }
@@ -757,6 +766,7 @@ const ClientQuestionaire = () => {
     setQuery(null)
     setResponse("")
     setFileList([])
+    setTableData([])
     setIsModalOpen(false)
     setIsPenModalOpen(false)
     setSelectedQuestion(null)
@@ -771,62 +781,125 @@ const ClientQuestionaire = () => {
     return diffDays
   }
 
-  // Function to handle submit
-  const handleSubmit = () => {
-    if (query) {
-      // Find the section and question to update
-      const sectionIndex = questionnaireSections.findIndex((s) => s.questions.some((q) => q.id === query.id))
+  // Function to update question status
+  const updateQuestionStatus = (questionId: string, newStatus: "draft" | "posted" | "unanswered", data: any) => {
+    // Create a deep copy of the questionnaire sections
+    const updatedSections = [...questionnaireSections]
 
-      if (sectionIndex !== -1) {
-        const questionIndex = questionnaireSections[sectionIndex].questions.findIndex((q) => q.id === query.id)
-
-        if (questionIndex !== -1) {
-          // Create a deep copy of the questionnaire sections
-          const updatedSections = [...questionnaireSections]
-
-          // Update the question
-          updatedSections[sectionIndex].questions[questionIndex] = {
-            ...updatedSections[sectionIndex].questions[questionIndex],
-            status: "draft",
-            answered: true,
-            textAnswer: response,
-            files: fileList.map((file) => ({
-              name: file.name,
-              category: "Uploaded File",
-              explanation: "",
-            })),
-          }
-
-          // Here you would typically save to your backend
-          // For now, we'll just update the state
-          // This is a simplified example - in a real app, you'd update your state management
+    // Find the section and question to update
+    for (let i = 0; i < updatedSections.length; i++) {
+      const questionIndex = updatedSections[i].questions.findIndex((q) => q.id === questionId)
+      if (questionIndex !== -1) {
+        // Update the question
+        updatedSections[i].questions[questionIndex] = {
+          ...updatedSections[i].questions[questionIndex],
+          status: newStatus,
+          answered: true,
+          ...data,
         }
+
+        // Update section progress
+        const totalSectionQuestions = updatedSections[i].questions.length
+        const answeredSectionQuestions = updatedSections[i].questions.filter((q) => q.answered).length
+        updatedSections[i].progress = Math.round((answeredSectionQuestions / totalSectionQuestions) * 100)
+
+        // Update section status
+        if (updatedSections[i].progress === 100) {
+          updatedSections[i].status = "completed"
+        } else if (updatedSections[i].progress > 0) {
+          updatedSections[i].status = "partial"
+        } else {
+          updatedSections[i].status = "pending"
+        }
+
+        break
       }
     }
 
-    // Instead of closing the modal, navigate to the next query if available
-    if (query && unansweredQueries.findIndex((q) => q.id === query.id) < unansweredQueries.length - 1) {
-      handleNextQuery()
-      // Reset response and fileList for the next query
-      setResponse("")
-      setFileList([])
-    } else {
-      // If this is the last query, then close the modal
-      alert("All queries have been answered!")
-      handleCloseModal()
+    // Update state
+    setQuestionnaireSections(updatedSections)
+  }
+
+  // Function to handle submit
+  const handleSubmit = (action: "draft" | "post" = "draft") => {
+    if (query) {
+      const newStatus = action === "post" ? "posted" : "draft"
+      const currentDate = new Date().toLocaleDateString("en-US", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+
+      const data: any = {
+        submittedDate: currentDate,
+        submittedBy: "Current User",
+      }
+
+      if (query.type === "yesno") {
+        data.answer = response
+      } else if (query.type === "text") {
+        data.textAnswer = response
+      } else if (query.type === "table") {
+        data.tableData = tableData
+      }
+
+      data.files = fileList.map((file) => ({
+        name: file.name,
+        category: "Uploaded File",
+        explanation: "",
+      }))
+
+      updateQuestionStatus(query.id, newStatus, data)
+
+      message.success(`Response ${action === "post" ? "posted" : "saved as draft"} successfully!`)
+
+      // Instead of closing the modal, navigate to the next query if available
+      if (unansweredQueries.findIndex((q) => q.id === query.id) < unansweredQueries.length - 1) {
+        handleNextQuery()
+        // Reset response and fileList for the next query
+        setResponse("")
+        setFileList([])
+        setTableData([])
+      } else {
+        // If this is the last query, then close the modal
+        message.success("All queries have been answered!")
+        handleCloseModal()
+      }
     }
   }
 
   // Function to handle submit for the new question modal
   const handleQuestionSubmit = (action: "draft" | "post") => {
     if (selectedQuestion) {
-      // Here you would typically save to your backend
-      // For now, we'll just show an alert
-      if (action === "draft") {
-        alert("Response saved as draft.")
-      } else {
-        alert("Response posted successfully!")
+      const newStatus = action === "post" ? "posted" : "draft"
+      const currentDate = new Date().toLocaleDateString("en-US", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+
+      const data: any = {
+        submittedDate: currentDate,
+        submittedBy: "Current User",
       }
+
+      if (selectedQuestion.type === "yesno") {
+        data.answer = response || selectedQuestion.answer
+      } else if (selectedQuestion.type === "text") {
+        data.textAnswer = response || selectedQuestion.textAnswer
+      } else if (selectedQuestion.type === "table") {
+        data.tableData = tableData
+      }
+
+      data.files = fileList.map((file) => ({
+        name: file.name,
+        category: "Uploaded File",
+        explanation: "",
+      }))
+
+      updateQuestionStatus(selectedQuestion.id, newStatus, data)
+
+      message.success(`Response ${action === "post" ? "posted" : "saved as draft"} successfully!`)
       handleCloseModal()
     }
   }
@@ -834,13 +907,35 @@ const ClientQuestionaire = () => {
   // Function to handle submit for the pen modal
   const handlePenModalSubmit = (action: "draft" | "post") => {
     if (selectedQuestion) {
-      // Here you would typically save to your backend
-      // For now, we'll just show an alert
-      if (action === "draft") {
-        alert("Response saved as draft.")
-      } else {
-        alert("Response posted successfully!")
+      const newStatus = action === "post" ? "posted" : "draft"
+      const currentDate = new Date().toLocaleDateString("en-US", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+
+      const data: any = {
+        submittedDate: currentDate,
+        submittedBy: "Current User",
       }
+
+      if (selectedQuestion.type === "yesno") {
+        data.answer = response || selectedQuestion.answer
+      } else if (selectedQuestion.type === "text") {
+        data.textAnswer = response || selectedQuestion.textAnswer
+      } else if (selectedQuestion.type === "table") {
+        data.tableData = tableData
+      }
+
+      data.files = fileList.map((file) => ({
+        name: file.name,
+        category: "Uploaded File",
+        explanation: "",
+      }))
+
+      updateQuestionStatus(selectedQuestion.id, newStatus, data)
+
+      message.success(`Response ${action === "post" ? "posted" : "saved as draft"} successfully!`)
 
       // Navigate to next question if available
       if (currentPenQuestionIndex < allQueries.length - 1) {
@@ -851,22 +946,70 @@ const ClientQuestionaire = () => {
     }
   }
 
-  // Filter questions based on active tab
+  // Filter sections based on active tab and search term
   const filteredSections = questionnaireSections
     .map((section) => {
-      if (activeTab === "all") return section
+      const filteredQuestions = section.questions.filter((q) => {
+        const matchesTab =
+          activeTab === "all" ||
+          (activeTab === "unanswered" && q.status === "unanswered") ||
+          (activeTab === "draft" && q.status === "draft") ||
+          (activeTab === "posted" && q.status === "posted")
+
+        const matchesSearch = q.text.toLowerCase().includes(searchTerm.toLowerCase())
+
+        return matchesTab && matchesSearch
+      })
+
+      if (filteredQuestions.length === 0) return null // Skip sections with no questions
 
       return {
         ...section,
-        questions: section.questions.filter((q) => {
-          if (activeTab === "unanswered") return q.status === "unanswered"
-          if (activeTab === "draft") return q.status === "draft"
-          if (activeTab === "posted") return q.status === "posted"
-          return true
-        }),
+        questions: filteredQuestions,
       }
     })
-    .filter((section) => section.questions.length > 0)
+    .filter(Boolean as any) // Remove null sections
+
+  // Function to add a new row to the table data
+  const handleAddTableRow = () => {
+    const newRow: TableRow = {
+      key: `new-${tableData.length}`,
+      description: "",
+      amount: "",
+      accountCode: "",
+    }
+    setTableData([...tableData, newRow])
+  }
+
+  // Function to remove a row from the table data
+  const handleRemoveTableRow = (key: string) => {
+    setTableData(tableData.filter((row) => row.key !== key))
+  }
+
+  // Function to update a table row
+  const handleTableRowChange = (key: string, field: keyof TableRow, value: string) => {
+    setTableData(
+      tableData.map((row) => {
+        if (row.key === key) {
+          return { ...row, [field]: value }
+        }
+        return row
+      }),
+    )
+  }
+
+  // Function to handle file view
+  const handleFileView = (file: UploadFile) => {
+    message.info(`Viewing file: ${file.name}`)
+    // In a real application, you would open the file in a new tab or modal
+    window.open("#", "_blank")
+  }
+
+  // Function to handle file delete
+  const handleFileDelete = (file: UploadFile) => {
+    setFileList(fileList.filter((f) => f.uid !== file.uid))
+    message.success(`File ${file.name} removed`)
+  }
 
   const items = [
     { key: "all", label: `All Questions (${totalQuestions})` },
@@ -952,37 +1095,55 @@ const ClientQuestionaire = () => {
             alignItems: "center",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "16px", width: "100%" }}>
-            <Tabs activeKey={activeTab} onChange={setActiveTab} items={items} />
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "16px",
-                color: "#4A5568",
-                fontSize: "14px",
-                marginBottom: "20px",
-              }}
-            >
-              <Text style={{ whiteSpace: "nowrap" }}>Submitted: Apr 8, 2025</Text>
-              <Text style={{ whiteSpace: "nowrap" }}>Due date: Apr 22, 2025</Text>
-              <Text style={{ whiteSpace: "nowrap", color: "#4CAF50" }}>Due in 14 days</Text>
-            </div>
-            <div style={{ marginLeft: "auto" }}>
-              <Button
-                type="primary"
-                onClick={handleRespondToQueries}
-                style={{
-                  background: "#0f766e",
-                  height: "32px",
-                  display: "flex",
-                  alignItems: "center",
-                  marginBottom: "20px",
-                }}
-              >
-                Respond to Queries
-              </Button>
-            </div>
+          <Tabs activeKey={activeTab} onChange={setActiveTab} items={items} />
+
+          {/* <div style={{ display: "flex", alignItems: "center", gap: "16px", width: "100%" }}> */}
+          {/* <Tabs activeKey={activeTab} onChange={setActiveTab} items={items} /> */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "16px",
+              color: "#4A5568",
+              fontSize: "14px",
+              marginBottom: "18px",
+              paddingLeft: "35px",
+            }}
+          >
+            <Text style={{ whiteSpace: "nowrap" }}>Submitted: Apr 8, 2025</Text>
+            <Text style={{ whiteSpace: "nowrap" }}>Due date: Apr 22, 2025</Text>
+            <Text style={{ whiteSpace: "nowrap", color: "#4CAF50" }}>Due in 14 days</Text>
+          </div>
+          {/* </div> */}
+          {/* Tabs on the left */}
+
+          {/* Search bar on the right */}
+          <div style={{ position: "relative", width: "250px", marginLeft: "75px", marginBottom: "15px" }}>
+            <Input
+              placeholder="Search Queries, etc."
+              style={{ width: "100%" }}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              suffix={
+                searchTerm ? (
+                  <div
+                    onClick={() => setSearchTerm("")}
+                    style={{
+                      cursor: "pointer",
+                      width: "16px",
+                      height: "16px",
+                      borderRadius: "50%",
+                      background: "#e0e0e0",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <CloseOutlined style={{ fontSize: "10px", color: "#666" }} />
+                  </div>
+                ) : null
+              }
+            />
           </div>
         </div>
       </div>
@@ -990,249 +1151,291 @@ const ClientQuestionaire = () => {
       {/* Main Content */}
       <div style={{ flex: 1, padding: "24px" }}>
         <div style={{ margin: "0 auto" }}>
-          {filteredSections.map((section) => (
-            <div key={section.id} style={{ marginBottom: "32px" }}>
-              <div
-                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}
-              >
-                <Title level={4} style={{ margin: 0 }}>
-                  {section.name}
-                </Title>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <Progress percent={section.progress} style={{ width: "128px" }} size="small" strokeColor="#0f766e" />
-                  {/* <Text strong>{section.progress}%</Text> */}
-                  {section.status === "completed" && (
-                    <CheckCircleOutlined style={{ fontSize: "20px", color: "#52c41a" }} />
-                  )}
-                  {section.status === "partial" && (
-                    <ClockCircleOutlined style={{ fontSize: "20px", color: "#faad14" }} />
-                  )}
-                  {section.status === "pending" && (
-                    <ExclamationCircleOutlined style={{ fontSize: "20px", color: "#d9d9d9" }} />
-                  )}
+          {/* Respond to Queries Button above Trading Information */}
+          <div style={{ marginBottom: "20px", display: "flex", justifyContent: "flex-end" }}>
+            <Button
+              type="primary"
+              onClick={handleRespondToQueries}
+              style={{
+                background: "#0f766e",
+                height: "36px",
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              Respond to Queries
+            </Button>
+          </div>
+
+          {filteredSections.length > 0 ? (
+            filteredSections.map((section) => (
+              <div key={section?.id} style={{ marginBottom: "32px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: "8px",
+                  }}
+                >
+                  <Title level={4} style={{ margin: 0 }}>
+                    {section?.name}
+                  </Title>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <Progress
+                      percent={section?.progress}
+                      style={{ width: "128px" }}
+                      showInfo={false}
+                      size="small"
+                      strokeColor="#0f766e"
+                    />
+                    {section?.status === "completed" && (
+                      <CheckCircleOutlined style={{ fontSize: "20px", color: "#52c41a" }} />
+                    )}
+                    {section?.status === "partial" && (
+                      <ClockCircleOutlined style={{ fontSize: "20px", color: "#faad14" }} />
+                    )}
+                    {section?.status === "pending" && (
+                      <ExclamationCircleOutlined style={{ fontSize: "20px", color: "#d9d9d9" }} />
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              {section.questions.map((question) => (
-                <div key={question.id} style={{ marginBottom: "16px" }}>
-                  <Card>
-                    <div style={{ padding: "8px" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                        <div style={{ flex: 1 }}>
-                          <Paragraph>
-                            <Text strong>{question.number}</Text> {question.text}
-                          </Paragraph>
-                          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "8px" }}>
-                            <Badge
-                              status={
-                                question.status === "posted"
-                                  ? "success"
-                                  : question.status === "draft"
-                                    ? "warning"
-                                    : "default"
-                              }
-                              text={
-                                question.status === "posted"
-                                  ? "Posted"
-                                  : question.status === "draft"
-                                    ? "Draft"
-                                    : "Unanswered"
-                              }
-                            />
-                            <Text type="secondary" style={{ fontSize: "12px" }}>
-                              {question.type === "yesno" && "Yes/No Question"}
-                              {question.type === "file" && "File Upload"}
-                              {question.type === "text" && "Text Response"}
-                              {question.type === "table" && "Tabular Data"}
-                            </Text>
+                {section?.questions.map((question) => (
+                  <div key={question.id} style={{ marginBottom: "16px" }}>
+                    <Card>
+                      <div style={{ padding: "8px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                          <div style={{ flex: 1 }}>
+                            <Paragraph>
+                              <Text strong>{question.number}</Text> {question.text}
+                            </Paragraph>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "8px" }}>
+                              <Badge
+                                status={
+                                  question.status === "posted"
+                                    ? "success"
+                                    : question.status === "draft"
+                                      ? "warning"
+                                      : "default"
+                                }
+                                text={
+                                  question.status === "posted"
+                                    ? "Posted"
+                                    : question.status === "draft"
+                                      ? "Draft"
+                                      : "Unanswered"
+                                }
+                              />
+                              <Text type="secondary" style={{ fontSize: "12px" }}>
+                                {question.type === "yesno" && "Yes/No Question"}
+                                {question.type === "file" && "File Upload"}
+                                {question.type === "text" && "Text Response"}
+                                {question.type === "table" && "Tabular Data"}
+                              </Text>
 
-                            {/* Submission info for posted questions */}
-                            {question.status === "posted" && (
+                              {/* Submission info for posted questions */}
+                              {question.status === "posted" && (
+                                <>
+                                  <Text type="secondary" style={{ fontSize: "12px" }}>
+                                    |
+                                  </Text>
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      fontSize: "12px",
+                                      color: "rgba(0, 0, 0, 0.45)",
+                                    }}
+                                  >
+                                    <CalendarOutlined style={{ marginRight: "4px", fontSize: "12px" }} />
+                                    Submitted: {question?.submittedDate}
+                                  </div>
+                                  <Text type="secondary" style={{ fontSize: "12px" }}>
+                                    |
+                                  </Text>
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      fontSize: "12px",
+                                      color: "rgba(0, 0, 0, 0.45)",
+                                    }}
+                                  >
+                                    <UserOutlined style={{ marginRight: "4px", fontSize: "12px" }} />
+                                    By: {question.submittedBy}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Action buttons moved to the top right */}
+                          <div style={{ display: "flex", gap: "8px", marginLeft: "16px" }}>
+                            {question.status === "posted" ? (
                               <>
-                                <Text type="secondary" style={{ fontSize: "12px" }}>
-                                  |
-                                </Text>
-                                <div
+                                <Button
+                                  icon={<EyeOutlined />}
+                                  onClick={() => handleOpenQuestion(section.id, question.id)}
+                                >
+                                  View Only
+                                </Button>
+                                <Button
+                                  icon={<EditOutlined />}
+                                  style={{ border: "none", padding: "0 8px" }}
+                                  onClick={() => handleOpenPenModal(section.id, question.id)}
+                                />
+                              </>
+                            ) : question.status === "draft" ? (
+                              <>
+                                <Button
+                                  icon={<EditOutlined />}
+                                  onClick={() => handleOpenQuestion(section.id, question.id)}
+                                >
+                                  {user_control.role === "client" ? "Edit Draft" : "View Draft"}
+                                </Button>
+                                <Button
+                                  disabled={user_control.role !== "client"}
+                                  type="primary"
+                                  icon={<CheckCircleOutlined />}
                                   style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    fontSize: "12px",
-                                    color: "rgba(0, 0, 0, 0.45)",
+                                    background: "#0f766e",
+                                    color: user_control.role !== "client" ? "#d9d9d9" : "#fff",
                                   }}
                                 >
-                                  <CalendarOutlined style={{ marginRight: "4px", fontSize: "12px" }} />
-                                  Submitted: {question?.submittedDate}
-                                </div>
-                                <Text type="secondary" style={{ fontSize: "12px" }}>
-                                  |
-                                </Text>
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    fontSize: "12px",
-                                    color: "rgba(0, 0, 0, 0.45)",
-                                  }}
+                                  Post
+                                </Button>
+                                <Button
+                                  icon={<EditOutlined />}
+                                  style={{ border: "none", padding: "0 8px" }}
+                                  onClick={() => handleOpenPenModal(section.id, question.id)}
+                                />
+                              </>
+                            ) : (
+                              <>
+                                <Button
+                                  disabled={user_control.role !== "client"}
+                                  icon={<EditOutlined />}
+                                  onClick={() => handleOpenQuestion(section.id, question.id)}
                                 >
-                                  <UserOutlined style={{ marginRight: "4px", fontSize: "12px" }} />
-                                  By: {question.submittedBy}
-                                </div>
+                                  Answer
+                                </Button>
+                                <Button
+                                  icon={<EditOutlined />}
+                                  style={{ border: "none", padding: "0 8px" }}
+                                  onClick={() => handleOpenPenModal(section.id, question.id)}
+                                />
                               </>
                             )}
                           </div>
                         </div>
 
-                        {/* Action buttons moved to the top right */}
-                        <div style={{ display: "flex", gap: "8px", marginLeft: "16px" }}>
-                          {question.status === "posted" ? (
-                            <>
-                              <Button
-                                icon={<EyeOutlined />}
-                                onClick={() => handleOpenQuestion(section.id, question.id)}
-                              >
-                                View Only
-                              </Button>
-                              <Button
-                                icon={<EditOutlined />}
-                                style={{ border: "none", padding: "0 8px" }}
-                                onClick={() => handleOpenPenModal(section.id, question.id)}
-                              />
-                            </>
-                          ) : question.status === "draft" ? (
-                            <>
-                              <Button
-                                icon={<EditOutlined />}
-                                onClick={() => handleOpenQuestion(section.id, question.id)}
-                              >
-                                {user_control.role === "client" ? "Edit Draft" : "View Draft"}
-                              </Button>
-                              <Button
-                                disabled={user_control.role !== "client"}
-                                type="primary"
-                                icon={<CheckCircleOutlined />}
+                        <Divider style={{ margin: "12px 0" }} />
+
+                        {/* Answer content */}
+                        {!question.answered ? (
+                          <Text type="secondary" italic>
+                            No response provided yet
+                          </Text>
+                        ) : (
+                          <div style={{ fontSize: "14px" }} className="dark:bg-gray-900 dark:text-white">
+                            {/* Yes/No Answer */}
+                            {question.type === "yesno" && question.answer && (
+                              <div className="dark:bg-gray-900 dark:text-white">
+                                <Text strong>Answer:</Text> {question.answer}
+                              </div>
+                            )}
+
+                            {/* Text Answer */}
+                            {question.type === "text" && question.textAnswer && (
+                              <div>
+                                <Text strong>Response:</Text> {question.textAnswer}
+                              </div>
+                            )}
+
+                            {/* Tabular Data */}
+                            {question.tableData && question.tableData.length > 0 && (
+                              <div className="dark:bg-gray-900 dark:text-white">
+                                <Text strong>Data:</Text>
+                                <div style={{ marginTop: "4px", padding: "8px", borderRadius: "4px" }}>
+                                  <table
+                                    className="dark:bg-gray-900 dark:text-white"
+                                    style={{ width: "100%", fontSize: "14px" }}
+                                  >
+                                    <thead>
+                                      <tr
+                                        className="dark:bg-gray-900 dark:text-white"
+                                        style={{ textAlign: "left", fontSize: "12px" }}
+                                      >
+                                        <th style={{ paddingBottom: "4px" }}>Description</th>
+                                        <th style={{ paddingBottom: "4px" }}>Amount</th>
+                                        <th style={{ paddingBottom: "4px" }}>Account Code</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {question.tableData.map((row, idx) => (
+                                        <tr key={idx} style={{ borderTop: "1px solid #f0f0f0" }}>
+                                          <td style={{ padding: "4px 0" }}>{row.description}</td>
+                                          <td style={{ padding: "4px 0", fontWeight: 500 }}>{row.amount}</td>
+                                          <td className="dark:bg-gray-900 dark:text-white" style={{ padding: "4px 0" }}>
+                                            {row.accountCode}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Files */}
+                            {question.files && question.files.length > 0 && (
+                              <div
                                 style={{
-                                  background: "#0f766e",
-                                  color: user_control.role !== "client" ? "#d9d9d9" : "#fff",
+                                  marginTop: question.tableData && question.tableData.length > 0 ? "12px" : "0",
                                 }}
                               >
-                                Post
-                              </Button>
-                              <Button
-                                icon={<EditOutlined />}
-                                style={{ border: "none", padding: "0 8px" }}
-                                onClick={() => handleOpenPenModal(section.id, question.id)}
-                              />
-                            </>
-                          ) : (
-                            <>
-                              <Button
-                                disabled={user_control.role !== "client"}
-                                icon={<EditOutlined />}
-                                onClick={() => handleOpenQuestion(section.id, question.id)}
-                              >
-                                Answer
-                              </Button>
-                              <Button
-                                icon={<EditOutlined />}
-                                style={{ border: "none", padding: "0 8px" }}
-                                onClick={() => handleOpenPenModal(section.id, question.id)}
-                              />
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      <Divider style={{ margin: "12px 0" }} />
-
-                      {/* Answer content */}
-                      {!question.answered ? (
-                        <Text type="secondary" italic>
-                          No response provided yet
-                        </Text>
-                      ) : (
-                        <div style={{ fontSize: "14px" }} className="dark:bg-gray-900 dark:text-white">
-                          {/* Yes/No Answer */}
-                          {question.type === "yesno" && question.answer && (
-                            <div className="dark:bg-gray-900 dark:text-white">
-                              <Text strong>Answer:</Text> {question.answer}
-                            </div>
-                          )}
-
-                          {/* Text Answer */}
-                          {question.type === "text" && question.textAnswer && (
-                            <div>
-                              <Text strong>Response:</Text> {question.textAnswer}
-                            </div>
-                          )}
-
-                          {/* Tabular Data */}
-                          {question.tableData && question.tableData.length > 0 && (
-                            <div className="dark:bg-gray-900 dark:text-white">
-                              <Text strong>Data:</Text>
-                              <div style={{ marginTop: "4px", padding: "8px", borderRadius: "4px" }}>
-                                <table
-                                  className="dark:bg-gray-900 dark:text-white"
-                                  style={{ width: "100%", fontSize: "14px" }}
-                                >
-                                  <thead>
-                                    <tr
-                                      className="dark:bg-gray-900 dark:text-white"
-                                      style={{ textAlign: "left", fontSize: "12px" }}
+                                <Text strong>Files:</Text>
+                                <div style={{ marginTop: "4px", display: "flex", flexDirection: "column", gap: "4px" }}>
+                                  {question.files.map((file, idx) => (
+                                    <div
+                                      key={idx}
+                                      style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px" }}
                                     >
-                                      <th style={{ paddingBottom: "4px" }}>Description</th>
-                                      <th style={{ paddingBottom: "4px" }}>Amount</th>
-                                      <th style={{ paddingBottom: "4px" }}>Account Code</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {question.tableData.map((row, idx) => (
-                                      <tr key={idx} style={{ borderTop: "1px solid #f0f0f0" }}>
-                                        <td style={{ padding: "4px 0" }}>{row.description}</td>
-                                        <td style={{ padding: "4px 0", fontWeight: 500 }}>{row.amount}</td>
-                                        <td className="dark:bg-gray-900 dark:text-white" style={{ padding: "4px 0" }}>
-                                          {row.accountCode}
-                                        </td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
+                                      <PaperClipOutlined style={{ fontSize: "12px", color: "#bfbfbf" }} />
+                                      <Text style={{ color: "#1890ff" }}>{file.name}</Text>
+                                      <Tag style={{ fontSize: "small" }}>{file.category}</Tag>
+                                      {file.explanation && (
+                                        <Tooltip title={file.explanation}>
+                                          <InfoCircleOutlined style={{ fontSize: "12px", color: "#bfbfbf" }} />
+                                        </Tooltip>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
-                            </div>
-                          )}
-
-                          {/* Files */}
-                          {question.files && question.files.length > 0 && (
-                            <div
-                              style={{ marginTop: question.tableData && question.tableData.length > 0 ? "12px" : "0" }}
-                            >
-                              <Text strong>Files:</Text>
-                              <div style={{ marginTop: "4px", display: "flex", flexDirection: "column", gap: "4px" }}>
-                                {question.files.map((file, idx) => (
-                                  <div
-                                    key={idx}
-                                    style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px" }}
-                                  >
-                                    <PaperClipOutlined style={{ fontSize: "12px", color: "#bfbfbf" }} />
-                                    <Text style={{ color: "#1890ff" }}>{file.name}</Text>
-                                    <Tag style={{ fontSize: "small" }}>{file.category}</Tag>
-                                    {file.explanation && (
-                                      <Tooltip title={file.explanation}>
-                                        <InfoCircleOutlined style={{ fontSize: "12px", color: "#bfbfbf" }} />
-                                      </Tooltip>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </Card>
-                </div>
-              ))}
-            </div>
-          ))}
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  </div>
+                ))}
+              </div>
+            ))
+          ) : (
+            <Card style={{ textAlign: "center", padding: "40px 0" }}>
+              <ExclamationCircleOutlined style={{ fontSize: "48px", color: "#d9d9d9", marginBottom: "16px" }} />
+              <Title level={4} style={{ margin: 0, color: "#666" }}>
+                No data found
+              </Title>
+              <Text type="secondary">
+                {searchTerm
+                  ? `No questions match the search term "${searchTerm}"`
+                  : "No questions match the selected filter"}
+              </Text>
+            </Card>
+          )}
         </div>
       </div>
 
@@ -1273,21 +1476,19 @@ const ClientQuestionaire = () => {
         </div>
       </div>
 
-      {/* New Question Modal */}
       <Modal
         title={null}
         open={isModalOpen}
         onCancel={handleCloseModal}
         footer={null}
         width={700}
-        closable={true}
-        closeIcon={<CloseOutlined style={{ color: "white" }} />}
+        closable={false}
         className="question-modal"
         bodyStyle={{ padding: 0 }}
+        style={{ top: 20 }}
       >
         {selectedQuestion && (
           <div style={{ borderRadius: "8px", overflow: "hidden" }}>
-            {/* Custom header */}
             <div
               style={{
                 backgroundColor: "#0F3A47",
@@ -1303,7 +1504,6 @@ const ClientQuestionaire = () => {
               </h2>
             </div>
 
-            {/* Content area */}
             <div>
               {/* Section and Question Number */}
               <div
@@ -1324,8 +1524,6 @@ const ClientQuestionaire = () => {
                   <div style={{ fontWeight: 500 }}>{selectedQuestion.number}</div>
                 </div>
               </div>
-
-              {/* Question */}
               <div style={{ padding: "1rem" }}>
                 <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>Question:</div>
                 <div
@@ -1340,71 +1538,271 @@ const ClientQuestionaire = () => {
                 </div>
               </div>
 
-              {/* File Attachments */}
+              {/* Response Section based on question type */}
               <div style={{ padding: "0 1rem 1rem" }}>
-                <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>File Attachments:</div>
-                <Upload.Dragger
-                  multiple
-                  // fileList={fileList}
-                  onChange={(info) => setFileList(info.fileList)}
-                  style={{ width: "100%" }}
-                  accept=".pdf,.xlsx,.docx,.jpg,.jpeg,.png"
-                  beforeUpload={() => false}
-                  showUploadList={false}
-                >
-                  <div style={{ padding: "1.5rem 0" }}>
-                    <p className="ant-upload-drag-icon" style={{ marginBottom: "8px" }}>
-                      <PlusOutlined style={{ fontSize: "24px", color: "#bbb" }} />
-                    </p>
-                    <p style={{ fontSize: "16px", color: "#666" }}>Drag and drop your files here, or click to browse</p>
-                    <p style={{ fontSize: "12px", color: "#999" }}>Supports PDF, Excel, Word, and image files</p>
-                    <Button
+                <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>Your Response:</div>
+
+                {selectedQuestion.type === "yesno" && (
+                  <Radio.Group
+                    onChange={(e) => setResponse(e.target.value)}
+                    value={response || selectedQuestion.answer}
+                    style={{ marginTop: "0.5rem" }}
+                  >
+                    <Space direction="vertical">
+                      <Radio value="Yes">Yes</Radio>
+                      <Radio value="No">No</Radio>
+                    </Space>
+                  </Radio.Group>
+                )}
+
+                {/* Text Question Type */}
+                {selectedQuestion.type === "text" && (
+                  <TextArea
+                    rows={4}
+                    placeholder="Enter your response here"
+                    value={response || selectedQuestion.textAnswer}
+                    onChange={(e) => setResponse(e.target.value)}
+                    style={{ marginTop: "0.5rem" }}
+                  />
+                )}
+
+                {selectedQuestion.type === "file" && (
+                  <div style={{ marginTop: "0.5rem" }}>
+                    <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>File Attachments:</div>
+
+                    <div
                       style={{
-                        marginTop: "12px",
-                        borderColor: "#d9d9d9",
-                        color: "#666",
+                        border: "1px solid #e8e8e8",
+                        borderRadius: "4px",
+                        padding: "1rem",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background: "white",
                       }}
                     >
-                      Browse Files
-                    </Button>
-                  </div>
-                </Upload.Dragger>
-
-                {/* Uploaded Files */}
-                {fileList.length > 0 && (
-                  <div style={{ marginTop: "1rem" }}>
-                    <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>Uploaded Files:</div>
-                    <div>
-                      {fileList.map((file) => (
-                        <div
-                          key={file.uid}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            padding: "0.5rem 0",
-                            borderBottom: "1px solid #f0f0f0",
-                          }}
+                      <div style={{ fontSize: "18px", color: "#d9d9d9", marginBottom: "4px" }}>+</div>
+                      <div style={{ color: "#666", marginBottom: "8px", fontSize: "13px" }}>Click to browse files</div>
+                      <Upload
+                        multiple
+                        onChange={(info) => {
+                          const newFileList = info.fileList.filter((file) => !file.status || file.status === "done")
+                          setFileList(newFileList)
+                        }}
+                        beforeUpload={() => false}
+                        fileList={[]}
+                        showUploadList={false}
+                      >
+                        <Button
+                          size="small"
+                          style={{ borderRadius: "4px", fontSize: "12px", height: "24px", padding: "0 8px" }}
                         >
-                          <div style={{ display: "flex", alignItems: "center" }}>
-                            <LinkOutlined style={{ color: "#1890ff", marginRight: "8px" }} />
-                            <span style={{ color: "#1890ff" }}>{file.name}</span>
-                          </div>
-                          <div>
-                            <Button
-                              type="text"
-                              icon={<EyeOutlined style={{ color: "green" }} />}
-                              style={{ marginRight: "8px" }}
-                            />
-                            <Button
-                              type="text"
-                              icon={<DeleteOutlined style={{ color: "red" }} />}
-                              onClick={() => setFileList(fileList.filter((f) => f.uid !== file.uid))}
-                            />
-                          </div>
-                        </div>
-                      ))}
+                          Browse Files
+                        </Button>
+                      </Upload>
                     </div>
+                    {fileList.length > 0 && (
+                      <div style={{ marginTop: "1rem" }}>
+                        <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>Uploaded Files:</div>
+                        <div>
+                          {fileList.map((file) => (
+                            <div
+                              key={file.uid}
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                padding: "0.75rem",
+                                borderBottom: "1px solid #f0f0f0",
+                                background: "#f9f9f9",
+                                marginBottom: "4px",
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "center" }}>
+                                <PaperClipOutlined style={{ marginRight: "8px", color: "#1890ff" }} />
+                                <Text style={{ color: "#1890ff" }}>{file.name}</Text>
+                              </div>
+                              <div>
+                                <Button
+                                  type="text"
+                                  icon={<EyeOutlined />}
+                                  onClick={() => handleFileView(file)}
+                                  style={{ color: "green" }}
+                                />
+                                <Button
+                                  type="text"
+                                  icon={<DeleteOutlined />}
+                                  onClick={() => handleFileDelete(file)}
+                                  style={{ color: "red" }}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {selectedQuestion.type === "table" && (
+                  <div style={{ marginTop: "0.5rem" }}>
+                    <div style={{ marginBottom: "0.5rem", display: "flex", justifyContent: "space-between" }}>
+                      <Text style={{ fontSize: "14px", fontWeight: 500 }}>Enter data in the table below:</Text>
+                      <Button
+                        type="primary"
+                        size="small"
+                        icon={<PlusOutlined />}
+                        onClick={handleAddTableRow}
+                        style={{ background: "#0F3A47" }}
+                      >
+                        Add Row
+                      </Button>
+                    </div>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <thead>
+                        <tr style={{ background: "#f5f5f5" }}>
+                          <th style={{ padding: "8px", textAlign: "left", border: "1px solid #e8e8e8" }}>
+                            Description
+                          </th>
+                          <th style={{ padding: "8px", textAlign: "left", border: "1px solid #e8e8e8" }}>Amount</th>
+                          <th style={{ padding: "8px", textAlign: "left", border: "1px solid #e8e8e8" }}>
+                            Account Code
+                          </th>
+                          <th
+                            style={{ padding: "8px", textAlign: "center", border: "1px solid #e8e8e8", width: "60px" }}
+                          >
+                            Action
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {tableData.map((row, index) => (
+                          <tr key={row.key || index}>
+                            <td style={{ padding: "4px", border: "1px solid #e8e8e8" }}>
+                              <Input
+                                value={row.description}
+                                onChange={(e) =>
+                                  handleTableRowChange(row.key || `row-${index}`, "description", e.target.value)
+                                }
+                                placeholder="Enter description"
+                                style={{ border: "none" }}
+                              />
+                            </td>
+                            <td style={{ padding: "4px", border: "1px solid #e8e8e8" }}>
+                              <Input
+                                value={row.amount}
+                                onChange={(e) =>
+                                  handleTableRowChange(row.key || `row-${index}`, "amount", e.target.value)
+                                }
+                                placeholder="Enter amount"
+                                style={{ border: "none" }}
+                              />
+                            </td>
+                            <td style={{ padding: "4px", border: "1px solid #e8e8e8" }}>
+                              <Input
+                                value={row.accountCode}
+                                onChange={(e) =>
+                                  handleTableRowChange(row.key || `row-${index}`, "accountCode", e.target.value)
+                                }
+                                placeholder="Enter account code"
+                                style={{ border: "none" }}
+                              />
+                            </td>
+                            <td
+                              style={{
+                                padding: "4px",
+                                border: "1px solid #e8e8e8",
+                                textAlign: "center",
+                              }}
+                            >
+                              <Button
+                                type="text"
+                                danger
+                                icon={<MinusCircleOutlined />}
+                                onClick={() => handleRemoveTableRow(row.key || `row-${index}`)}
+                                size="small"
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                        {tableData.length === 0 && (
+                          <tr>
+                            <td
+                              colSpan={4}
+                              style={{ padding: "12px", textAlign: "center", border: "1px solid #e8e8e8" }}
+                            >
+                              No data. Click "Add Row" to add data.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {(selectedQuestion.type === "table" || selectedQuestion.type === "text") && (
+                  <div style={{ marginTop: "1rem" }}>
+                    <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>
+                      Attach supporting documents (optional):
+                    </div>
+                    <Upload
+                      multiple
+                      onChange={(info) => {
+                        // Only update fileList with files that have been successfully uploaded or are new
+                        const newFileList = info.fileList.filter((file) => !file.status || file.status === "done")
+                        setFileList(newFileList)
+                      }}
+                      beforeUpload={() => false}
+                      fileList={[]}
+                      showUploadList={false}
+                    >
+                      <Button icon={<UploadOutlined />} style={{ marginBottom: "0.5rem" }}>
+                        Select Files
+                      </Button>
+                      <Text style={{ marginLeft: "0.5rem", fontSize: "12px", color: "#666" }}>
+                        Supports PDF, Excel, Word, and image files
+                      </Text>
+                    </Upload>
+
+                    {/* Display uploaded files with view and delete options */}
+                    {fileList.length > 0 && (
+                      <div style={{ marginTop: "0.5rem" }}>
+                        <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>Uploaded Files:</div>
+                        <div style={{ border: "1px solid #e8e8e8", borderRadius: "4px", padding: "0.5rem" }}>
+                          {fileList.map((file) => (
+                            <div
+                              key={file.uid}
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                padding: "0.5rem 0",
+                                borderBottom: "1px solid #f0f0f0",
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "center" }}>
+                                <PaperClipOutlined style={{ marginRight: "8px", color: "#1890ff" }} />
+                                <Text style={{ color: "#1890ff" }}>{file.name}</Text>
+                              </div>
+                              <div>
+                                <Button
+                                  type="text"
+                                  icon={<EyeOutlined />}
+                                  onClick={() => handleFileView(file)}
+                                  style={{ color: "green" }}
+                                />
+                                <Button
+                                  type="text"
+                                  icon={<DeleteOutlined />}
+                                  onClick={() => handleFileDelete(file)}
+                                  style={{ color: "red" }}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1491,10 +1889,10 @@ const ClientQuestionaire = () => {
         onCancel={handleCloseModal}
         footer={null}
         width={700}
-        closable={true}
-        closeIcon={<CloseOutlined style={{ color: "white" }} />}
+        closable={false}
         className="pen-modal"
         bodyStyle={{ padding: 0 }}
+        style={{ top: 20 }}
       >
         {selectedQuestion && (
           <div style={{ borderRadius: "8px", overflow: "hidden" }}>
@@ -1598,13 +1996,15 @@ const ClientQuestionaire = () => {
                 </div>
               </div>
 
-              {/* Response Section */}
+              {/* Response Section based on question type */}
               <div style={{ padding: "0 1rem 1rem" }}>
                 <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>Your Response:</div>
+
+                {/* Yes/No Question Type */}
                 {selectedQuestion.type === "yesno" && (
                   <Radio.Group
                     onChange={(e) => setResponse(e.target.value)}
-                    value={response}
+                    value={response || selectedQuestion.answer}
                     style={{ marginTop: "0.5rem" }}
                   >
                     <Space direction="vertical">
@@ -1613,90 +2013,262 @@ const ClientQuestionaire = () => {
                     </Space>
                   </Radio.Group>
                 )}
+
+                {/* Text Question Type */}
                 {selectedQuestion.type === "text" && (
                   <TextArea
                     rows={4}
                     placeholder="Enter your response here"
-                    value={response}
-                    onChange={(e) => setResponse(e.target.value)}
-                    style={{ marginTop: "0.5rem" }}
-                  />
-                )}
-                {selectedQuestion.type === "file" && (
-                  <Upload.Dragger
-                    multiple
-                    // fileList={fileList}
-                    onChange={(info) => setFileList(info.fileList)}
-                    style={{ width: "100%" }}
-                    accept=".pdf,.xlsx,.docx,.jpg,.jpeg,.png"
-                    beforeUpload={() => false}
-                    showUploadList={false}
-                  >
-                    <div style={{ padding: "1.5rem 0" }}>
-                      <p className="ant-upload-drag-icon" style={{ marginBottom: "8px" }}>
-                        <PlusOutlined style={{ fontSize: "24px", color: "#bbb" }} />
-                      </p>
-                      <p style={{ fontSize: "16px", color: "#666" }}>
-                        Drag and drop your files here, or click to browse
-                      </p>
-                      <p style={{ fontSize: "12px", color: "#999" }}>Supports PDF, Excel, Word, and image files</p>
-                      <Button
-                        style={{
-                          marginTop: "12px",
-                          borderColor: "#d9d9d9",
-                          color: "#666",
-                        }}
-                      >
-                        Browse Files
-                      </Button>
-                    </div>
-                  </Upload.Dragger>
-                )}
-                {selectedQuestion.type === "table" && (
-                  <TextArea
-                    rows={4}
-                    placeholder="Enter your response here"
-                    value={response}
+                    value={response || selectedQuestion.textAnswer}
                     onChange={(e) => setResponse(e.target.value)}
                     style={{ marginTop: "0.5rem" }}
                   />
                 )}
 
-                {/* Uploaded Files */}
-                {fileList.length > 0 && (
-                  <div style={{ marginTop: "1rem" }}>
-                    <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>Uploaded Files:</div>
-                    <div>
-                      {fileList.map((file) => (
-                        <div
-                          key={file.uid}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            padding: "0.5rem 0",
-                            borderBottom: "1px solid #f0f0f0",
-                          }}
+                {/* File Upload Question Type */}
+                {selectedQuestion.type === "file" && (
+                  <div style={{ marginTop: "0.5rem" }}>
+                    <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>File Attachments:</div>
+
+                    <div
+                      style={{
+                        border: "1px solid #e8e8e8",
+                        borderRadius: "4px",
+                        padding: "1rem",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background: "white",
+                      }}
+                    >
+                      <div style={{ fontSize: "18px", color: "#d9d9d9", marginBottom: "4px" }}>+</div>
+                      <div style={{ color: "#666", marginBottom: "8px", fontSize: "13px" }}>Click to browse files</div>
+                      <Upload
+                        multiple
+                        onChange={(info) => {
+                          // Only update fileList with files that have been successfully uploaded or are new
+                          const newFileList = info.fileList.filter((file) => !file.status || file.status === "done")
+                          setFileList(newFileList)
+                        }}
+                        beforeUpload={() => false}
+                        fileList={[]}
+                        showUploadList={false}
+                      >
+                        <Button
+                          size="small"
+                          style={{ borderRadius: "4px", fontSize: "12px", height: "24px", padding: "0 8px" }}
                         >
-                          <div style={{ display: "flex", alignItems: "center" }}>
-                            <LinkOutlined style={{ color: "#1890ff", marginRight: "8px" }} />
-                            <span style={{ color: "#1890ff" }}>{file.name}</span>
-                          </div>
-                          <div>
-                            <Button
-                              type="text"
-                              icon={<EyeOutlined style={{ color: "green" }} />}
-                              style={{ marginRight: "8px" }}
-                            />
-                            <Button
-                              type="text"
-                              icon={<DeleteOutlined style={{ color: "red" }} />}
-                              onClick={() => setFileList(fileList.filter((f) => f.uid !== file.uid))}
-                            />
-                          </div>
-                        </div>
-                      ))}
+                          Browse Files
+                        </Button>
+                      </Upload>
                     </div>
+
+                    {/* Display uploaded files with view and delete options */}
+                    {fileList.length > 0 && (
+                      <div style={{ marginTop: "1rem" }}>
+                        <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>Uploaded Files:</div>
+                        <div>
+                          {fileList.map((file) => (
+                            <div
+                              key={file.uid}
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                padding: "0.75rem",
+                                borderBottom: "1px solid #f0f0f0",
+                                background: "#f9f9f9",
+                                marginBottom: "4px",
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "center" }}>
+                                <PaperClipOutlined style={{ marginRight: "8px", color: "#1890ff" }} />
+                                <Text style={{ color: "#1890ff" }}>{file.name}</Text>
+                              </div>
+                              <div>
+                                <Button
+                                  type="text"
+                                  icon={<EyeOutlined />}
+                                  onClick={() => handleFileView(file)}
+                                  style={{ color: "green" }}
+                                />
+                                <Button
+                                  type="text"
+                                  icon={<DeleteOutlined />}
+                                  onClick={() => handleFileDelete(file)}
+                                  style={{ color: "red" }}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Table Question Type */}
+                {selectedQuestion.type === "table" && (
+                  <div style={{ marginTop: "0.5rem" }}>
+                    <div style={{ marginBottom: "0.5rem", display: "flex", justifyContent: "space-between" }}>
+                      <Text style={{ fontSize: "14px", fontWeight: 500 }}>Enter data in the table below:</Text>
+                      <Button
+                        type="primary"
+                        size="small"
+                        icon={<PlusOutlined />}
+                        onClick={handleAddTableRow}
+                        style={{ background: "#0F3A47" }}
+                      >
+                        Add Row
+                      </Button>
+                    </div>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <thead>
+                        <tr style={{ background: "#f5f5f5" }}>
+                          <th style={{ padding: "8px", textAlign: "left", border: "1px solid #e8e8e8" }}>
+                            Description
+                          </th>
+                          <th style={{ padding: "8px", textAlign: "left", border: "1px solid #e8e8e8" }}>Amount</th>
+                          <th style={{ padding: "8px", textAlign: "left", border: "1px solid #e8e8e8" }}>
+                            Account Code
+                          </th>
+                          <th
+                            style={{ padding: "8px", textAlign: "center", border: "1px solid #e8e8e8", width: "60px" }}
+                          >
+                            Action
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {tableData.map((row, index) => (
+                          <tr key={row.key || index}>
+                            <td style={{ padding: "4px", border: "1px solid #e8e8e8" }}>
+                              <Input
+                                value={row.description}
+                                onChange={(e) =>
+                                  handleTableRowChange(row.key || `row-${index}`, "description", e.target.value)
+                                }
+                                placeholder="Enter description"
+                                style={{ border: "none" }}
+                              />
+                            </td>
+                            <td style={{ padding: "4px", border: "1px solid #e8e8e8" }}>
+                              <Input
+                                value={row.amount}
+                                onChange={(e) =>
+                                  handleTableRowChange(row.key || `row-${index}`, "amount", e.target.value)
+                                }
+                                placeholder="Enter amount"
+                                style={{ border: "none" }}
+                              />
+                            </td>
+                            <td style={{ padding: "4px", border: "1px solid #e8e8e8" }}>
+                              <Input
+                                value={row.accountCode}
+                                onChange={(e) =>
+                                  handleTableRowChange(row.key || `row-${index}`, "accountCode", e.target.value)
+                                }
+                                placeholder="Enter account code"
+                                style={{ border: "none" }}
+                              />
+                            </td>
+                            <td
+                              style={{
+                                padding: "4px",
+                                border: "1px solid #e8e8e8",
+                                textAlign: "center",
+                              }}
+                            >
+                              <Button
+                                type="text"
+                                danger
+                                icon={<MinusCircleOutlined />}
+                                onClick={() => handleRemoveTableRow(row.key || `row-${index}`)}
+                                size="small"
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                        {tableData.length === 0 && (
+                          <tr>
+                            <td
+                              colSpan={4}
+                              style={{ padding: "12px", textAlign: "center", border: "1px solid #e8e8e8" }}
+                            >
+                              No data. Click "Add Row" to add data.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Optional file upload for table and text questions */}
+                {(selectedQuestion.type === "table" || selectedQuestion.type === "text") && (
+                  <div style={{ marginTop: "1rem" }}>
+                    <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>
+                      Attach supporting documents (optional):
+                    </div>
+                    <Upload
+                      multiple
+                      onChange={(info) => {
+                        // Only update fileList with files that have been successfully uploaded or are new
+                        const newFileList = info.fileList.filter((file) => !file.status || file.status === "done")
+                        setFileList(newFileList)
+                      }}
+                      beforeUpload={() => false}
+                      fileList={[]}
+                      showUploadList={false}
+                    >
+                      <Button icon={<UploadOutlined />} style={{ marginBottom: "0.5rem" }}>
+                        Select Files
+                      </Button>
+                      <Text style={{ marginLeft: "0.5rem", fontSize: "12px", color: "#666" }}>
+                        Supports PDF, Excel, Word, and image files
+                      </Text>
+                    </Upload>
+
+                    {/* Display uploaded files with view and delete options */}
+                    {fileList.length > 0 && (
+                      <div style={{ marginTop: "0.5rem" }}>
+                        <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>Uploaded Files:</div>
+                        <div style={{ border: "1px solid #e8e8e8", borderRadius: "4px", padding: "0.5rem" }}>
+                          {fileList.map((file) => (
+                            <div
+                              key={file.uid}
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                padding: "0.5rem 0",
+                                borderBottom: "1px solid #f0f0f0",
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "center" }}>
+                                <PaperClipOutlined style={{ marginRight: "8px", color: "#1890ff" }} />
+                                <Text style={{ color: "#1890ff" }}>{file.name}</Text>
+                              </div>
+                              <div>
+                                <Button
+                                  type="text"
+                                  icon={<EyeOutlined />}
+                                  onClick={() => handleFileView(file)}
+                                  style={{ color: "green" }}
+                                />
+                                <Button
+                                  type="text"
+                                  icon={<DeleteOutlined />}
+                                  onClick={() => handleFileDelete(file)}
+                                  style={{ color: "red" }}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1786,6 +2358,7 @@ const ClientQuestionaire = () => {
         closable={false}
         className="respond-modal"
         bodyStyle={{ padding: 0 }}
+        style={{ top: 20 }}
       >
         {query && (
           <div style={{ borderRadius: "8px", overflow: "hidden" }}>
@@ -1802,10 +2375,6 @@ const ClientQuestionaire = () => {
               }}
             >
               <h2 style={{ color: "white", fontSize: "1.5rem", fontWeight: 500, margin: 0 }}>Respond to Query</h2>
-              <CloseOutlined
-                style={{ color: "white", fontSize: "16px", cursor: "pointer" }}
-                onClick={handleCloseModal}
-              />
             </div>
 
             {/* Navigation bar */}
@@ -1899,82 +2468,283 @@ const ClientQuestionaire = () => {
                 </div>
               </div>
 
-              {/* File Attachments */}
+              {/* Response Section based on question type */}
               <div style={{ padding: "0 1rem 1rem" }}>
-                <div
-                  style={{
-                    marginBottom: "0.5rem",
-                    color: "#666",
-                    fontSize: "14px",
-                    display: "flex",
-                    alignItems: "center",
-                  }}
-                >
-                  <PaperClipOutlined style={{ marginRight: "8px" }} />
-                  <span style={{ fontWeight: 500 }}>Attach Files</span>
-                </div>
-                <Upload.Dragger
-                  multiple
-                  fileList={fileList}
-                  onChange={(info) => setFileList(info.fileList)}
-                  style={{ width: "100%" }}
-                  accept=".pdf,.xlsx,.docx,.jpg,.jpeg,.png"
-                  beforeUpload={() => false}
-                  showUploadList={false}
-                >
-                  <div style={{ padding: "2rem 0" }}>
-                    <div
-                      style={{ display: "flex", justifyContent: "center", alignItems: "center", marginBottom: "8px" }}
+                {/* Yes/No Question Type */}
+                {query.type === "yesno" && (
+                  <div>
+                    <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>Your Response:</div>
+                    <Radio.Group
+                      onChange={(e) => setResponse(e.target.value)}
+                      value={response || query.answer}
+                      style={{ marginTop: "0.5rem" }}
                     >
-                      <div
-                        style={{
-                          width: "48px",
-                          height: "48px",
-                          borderRadius: "50%",
-                          background: "#F5F5F5",
-                          display: "flex",
-                          justifyContent: "center",
-                          alignItems: "center",
-                        }}
-                      >
-                        <PlusOutlined style={{ fontSize: "24px", color: "#bbb" }} />
-                      </div>
-                    </div>
-                    <p style={{ fontSize: "16px", color: "#666", textAlign: "center" }}>
-                      Drag files here or click to browse
-                    </p>
+                      <Space direction="vertical">
+                        <Radio value="Yes">Yes</Radio>
+                        <Radio value="No">No</Radio>
+                      </Space>
+                    </Radio.Group>
                   </div>
-                </Upload.Dragger>
+                )}
 
-                {/* Uploaded Files */}
-                {fileList.length > 0 && (
-                  <div style={{ marginTop: "1rem" }}>
-                    <div>
-                      {fileList.map((file) => (
-                        <div
-                          key={file.uid}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            padding: "0.5rem 0",
-                            borderBottom: "1px solid #f0f0f0",
-                          }}
+                {/* Text Question Type */}
+                {query.type === "text" && (
+                  <div>
+                    <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>Your Response:</div>
+                    <TextArea
+                      rows={4}
+                      placeholder="Enter your response here"
+                      value={response || query.textAnswer}
+                      onChange={(e) => setResponse(e.target.value)}
+                      style={{ marginTop: "0.5rem" }}
+                    />
+                  </div>
+                )}
+
+                {/* File Upload Question Type */}
+                {query.type === "file" && (
+                  <div style={{ marginTop: "0.5rem" }}>
+                    <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>File Attachments:</div>
+
+                    <div
+                      style={{
+                        border: "1px solid #e8e8e8",
+                        borderRadius: "4px",
+                        padding: "1rem",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background: "white",
+                      }}
+                    >
+                      <div style={{ fontSize: "18px", color: "#d9d9d9", marginBottom: "4px" }}>+</div>
+                      <div style={{ color: "#666", marginBottom: "8px", fontSize: "13px" }}>Click to browse files</div>
+                      <Upload
+                        multiple
+                        onChange={(info) => {
+                          // Only update fileList with files that have been successfully uploaded or are new
+                          const newFileList = info.fileList.filter((file) => !file.status || file.status === "done")
+                          setFileList(newFileList)
+                        }}
+                        beforeUpload={() => false}
+                        fileList={[]}
+                        showUploadList={false}
+                      >
+                        <Button
+                          size="small"
+                          style={{ borderRadius: "4px", fontSize: "12px", height: "24px", padding: "0 8px" }}
                         >
-                          <div style={{ display: "flex", alignItems: "center" }}>
-                            <LinkOutlined style={{ color: "#1890ff", marginRight: "8px" }} />
-                            <span style={{ color: "#1890ff" }}>{file.name}</span>
-                          </div>
-                          <div>
-                            <Button
-                              type="text"
-                              icon={<DeleteOutlined style={{ color: "red" }} />}
-                              onClick={() => setFileList(fileList.filter((f) => f.uid !== file.uid))}
-                            />
-                          </div>
-                        </div>
-                      ))}
+                          Browse Files
+                        </Button>
+                      </Upload>
                     </div>
+
+                    {/* Display uploaded files with view and delete options */}
+                    {fileList.length > 0 && (
+                      <div style={{ marginTop: "1rem" }}>
+                        <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>Uploaded Files:</div>
+                        <div>
+                          {fileList.map((file) => (
+                            <div
+                              key={file.uid}
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                padding: "0.75rem",
+                                borderBottom: "1px solid #f0f0f0",
+                                background: "#f9f9f9",
+                                marginBottom: "4px",
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "center" }}>
+                                <PaperClipOutlined style={{ marginRight: "8px", color: "#1890ff" }} />
+                                <Text style={{ color: "#1890ff" }}>{file.name}</Text>
+                              </div>
+                              <div>
+                                <Button
+                                  type="text"
+                                  icon={<EyeOutlined />}
+                                  onClick={() => handleFileView(file)}
+                                  style={{ color: "green" }}
+                                />
+                                <Button
+                                  type="text"
+                                  icon={<DeleteOutlined />}
+                                  onClick={() => handleFileDelete(file)}
+                                  style={{ color: "red" }}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Table Question Type */}
+                {query.type === "table" && (
+                  <div style={{ marginTop: "0.5rem" }}>
+                    <div style={{ marginBottom: "0.5rem", display: "flex", justifyContent: "space-between" }}>
+                      <Text style={{ fontSize: "14px", fontWeight: 500 }}>Enter data in the table below:</Text>
+                      <Button
+                        type="primary"
+                        size="small"
+                        icon={<PlusOutlined />}
+                        onClick={handleAddTableRow}
+                        style={{ background: "#0F3A47" }}
+                      >
+                        Add Row
+                      </Button>
+                    </div>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <thead>
+                        <tr style={{ background: "#f5f5f5" }}>
+                          <th style={{ padding: "8px", textAlign: "left", border: "1px solid #e8e8e8" }}>
+                            Description
+                          </th>
+                          <th style={{ padding: "8px", textAlign: "left", border: "1px solid #e8e8e8" }}>Amount</th>
+                          <th style={{ padding: "8px", textAlign: "left", border: "1px solid #e8e8e8" }}>
+                            Account Code
+                          </th>
+                          <th
+                            style={{ padding: "8px", textAlign: "center", border: "1px solid #e8e8e8", width: "60px" }}
+                          >
+                            Action
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {tableData.map((row, index) => (
+                          <tr key={row.key || index}>
+                            <td style={{ padding: "4px", border: "1px solid #e8e8e8" }}>
+                              <Input
+                                value={row.description}
+                                onChange={(e) =>
+                                  handleTableRowChange(row.key || `row-${index}`, "description", e.target.value)
+                                }
+                                placeholder="Enter description"
+                                style={{ border: "none" }}
+                              />
+                            </td>
+                            <td style={{ padding: "4px", border: "1px solid #e8e8e8" }}>
+                              <Input
+                                value={row.amount}
+                                onChange={(e) =>
+                                  handleTableRowChange(row.key || `row-${index}`, "amount", e.target.value)
+                                }
+                                placeholder="Enter amount"
+                                style={{ border: "none" }}
+                              />
+                            </td>
+                            <td style={{ padding: "4px", border: "1px solid #e8e8e8" }}>
+                              <Input
+                                value={row.accountCode}
+                                onChange={(e) =>
+                                  handleTableRowChange(row.key || `row-${index}`, "accountCode", e.target.value)
+                                }
+                                placeholder="Enter account code"
+                                style={{ border: "none" }}
+                              />
+                            </td>
+                            <td
+                              style={{
+                                padding: "4px",
+                                border: "1px solid #e8e8e8",
+                                textAlign: "center",
+                              }}
+                            >
+                              <Button
+                                type="text"
+                                danger
+                                icon={<MinusCircleOutlined />}
+                                onClick={() => handleRemoveTableRow(row.key || `row-${index}`)}
+                                size="small"
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                        {tableData.length === 0 && (
+                          <tr>
+                            <td
+                              colSpan={4}
+                              style={{ padding: "12px", textAlign: "center", border: "1px solid #e8e8e8" }}
+                            >
+                              No data. Click "Add Row" to add data.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {/* Optional file upload for table questions */}
+                {query.type === "table" && (
+                  <div style={{ marginTop: "1rem" }}>
+                    <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>
+                      Attach supporting documents (optional):
+                    </div>
+                    <Upload
+                      multiple
+                      onChange={(info) => {
+                        // Only update fileList with files that have been successfully uploaded or are new
+                        const newFileList = info.fileList.filter((file) => !file.status || file.status === "done")
+                        setFileList(newFileList)
+                      }}
+                      beforeUpload={() => false}
+                      fileList={[]}
+                      showUploadList={false}
+                    >
+                      <Button icon={<UploadOutlined />} style={{ marginBottom: "0.5rem" }}>
+                        Select Files
+                      </Button>
+                      <Text style={{ marginLeft: "0.5rem", fontSize: "12px", color: "#666" }}>
+                        Supports PDF, Excel, Word, and image files
+                      </Text>
+                    </Upload>
+
+                    {/* Display uploaded files with view and delete options */}
+                    {fileList.length > 0 && (
+                      <div style={{ marginTop: "0.5rem" }}>
+                        <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>Uploaded Files:</div>
+                        <div style={{ border: "1px solid #e8e8e8", borderRadius: "4px", padding: "0.5rem" }}>
+                          {fileList.map((file) => (
+                            <div
+                              key={file.uid}
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                padding: "0.5rem 0",
+                                borderBottom: "1px solid #f0f0f0",
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "center" }}>
+                                <PaperClipOutlined style={{ marginRight: "8px", color: "#1890ff" }} />
+                                <Text style={{ color: "#1890ff" }}>{file.name}</Text>
+                              </div>
+                              <div>
+                                <Button
+                                  type="text"
+                                  icon={<EyeOutlined />}
+                                  onClick={() => handleFileView(file)}
+                                  style={{ color: "green" }}
+                                />
+                                <Button
+                                  type="text"
+                                  icon={<DeleteOutlined />}
+                                  onClick={() => handleFileDelete(file)}
+                                  style={{ color: "red" }}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -2004,7 +2774,7 @@ const ClientQuestionaire = () => {
                   Close
                 </Button>
                 <Button
-                  onClick={() => handleSubmit()}
+                  onClick={() => handleSubmit("draft")}
                   style={{
                     borderColor: "#E2E8F0",
                     color: "#4A5568",
@@ -2017,10 +2787,7 @@ const ClientQuestionaire = () => {
                   Save as Draft
                 </Button>
                 <Button
-                  onClick={() => {
-                    handleSubmit()
-                    alert("Response posted successfully!")
-                  }}
+                  onClick={() => handleSubmit("post")}
                   style={{
                     backgroundColor: "#0F3A47",
                     color: "white",
