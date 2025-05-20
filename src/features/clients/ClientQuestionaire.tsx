@@ -748,7 +748,7 @@ const ClientQuestionaire = () => {
                       alignItems: "center",
                       gap: "4px"
                     }}>
-                      <Progress
+                      {/* <Progress
                         percent={question.progress}
                         size="small"
                         strokeColor={
@@ -759,7 +759,14 @@ const ClientQuestionaire = () => {
                               : "#d9d9d9"
                         }
                         style={{ width: '80px' }}
-                      />
+                      /> */}
+                      <Progress
+                    percent={question.progress}
+                    style={{ width: "128px" }}
+                    size="small"
+                    strokeColor="#0f766e"
+                    showInfo={false}
+                  />
 
                       {question.progress === 100 && (
                         <CheckCircleOutlined style={{ fontSize: "16px", color: "#0f766e" }} />

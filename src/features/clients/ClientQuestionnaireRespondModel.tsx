@@ -474,6 +474,7 @@ const ClientQuestionnaireRespondModel = ({ isOpen, onClose, question, onSave, on
           <Title level={4} style={{ color: "white", margin: 0 }}>
             {isPosted ? "View Question" : isDraft ? (user_control.role === "client" ? "Edit Draft" : "View Draft") : "Answer Question"}
           </Title>
+          
           {isPosted && (
             <Badge color="green" text={<Text style={{ color: "white" }}>Posted</Text>} style={{ marginLeft: "8px" }} />
           )}
