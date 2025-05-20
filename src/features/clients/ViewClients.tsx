@@ -1,29 +1,14 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Input, Typography, Layout, Tooltip, Badge, Tabs, Switch } from "antd"
-import {
-  SearchOutlined,
-  UserOutlined,
-  FileTextOutlined,
-  MessageOutlined,
-  FormOutlined,
-  HistoryOutlined,
-  SettingOutlined,
-  FontSizeOutlined
-} from "@ant-design/icons"
+import { Input, Layout, Tooltip, Badge, Tabs, Switch } from "antd"
+import { SearchOutlined, UserOutlined, MessageOutlined, FormOutlined, HistoryOutlined } from "@ant-design/icons"
 import ReminderHistory from "../reminders/ReminderHistory"
-import Settings from "../settings/Settings"
 import ClientQuestionaire from "./ClientQuestionaire"
 import JobsManagement from "../Jobs/JobsManagement"
-import QueryHub from "./QueryHub"
-// import { RulerIcon } from "lucide-react"
-// import AddRule from "../add_rule/AddRule"
 import QueryBuilder from "../query_builder/QueryBuilder"
 import { useMemo } from "react"
 import QueryHubNew from "./QueryHubNew"
-
-const { Text } = Typography
 const { Sider, Content } = Layout
 const { TabPane } = Tabs
 
@@ -49,15 +34,6 @@ const mockClients: ClientItem[] = [
 
 const ViewClients = () => {
   const user_control = JSON.parse(sessionStorage.getItem("user") || "{}")
-  const [settingsModalVisible, setSettingsModalVisible] = useState(true)
-  
-  const showSettingsModal = () => {
-    setSettingsModalVisible(true)
-  }
-  const hideSettingsModal = () => {
-    setSettingsModalVisible(false)
-  }
-
   // const [queries, setQueries] = useState<QueryItem[]>([])
   // const [loading, setLoading] = useState(true)
   // const [activeTab, setActiveTab] = useState("active")
@@ -105,7 +81,6 @@ const ViewClients = () => {
   const handleClientClick = (clientName: string) => {
     setSelectedClient(clientName)
   }
-  const [selectedCompany, setSelectedCompany] = useState<string>("")
 
   // const handleRespondToQueries = () => {
   //   // Filter queries that need response
@@ -448,11 +423,6 @@ const ViewClients = () => {
   const visibleTabs = useMemo(() => {
     return mainTabs.filter((tab) => !tab.hidden)
   }, [user_control?.role])
-  const handleCompanySelect = (company: string) => {
-    setSelectedCompany(company)
-    // Store the selection for persistence
-    localStorage.setItem("selectedCompany", company)
-  }
   return (
     <Layout className="h-full bg-white dark:bg-gray-900 dark:text-white">
       {/* Top Navigation Tabs */}
@@ -463,8 +433,6 @@ const ViewClients = () => {
               <TabPane key={tab.hidden ? '' : tab.key} tab={tab.hidden ? '' : tab.label} />
             ))}
           </Tabs>
-          {/* {user_control?.role === "client" && <Text className="text-gray-800 border-b pb-2">ACCT. Manager: Jane Smith</Text>} */}
-          {/* <FontSizeOutlined /> */}
         </div>
       </div>
 
@@ -472,67 +440,18 @@ const ViewClients = () => {
       <Layout className="h-full bg-white view-clients-content dark:bg-gray-900 dark:text-white position-relative">
         {/* Left sidebar */}
         {user_control?.role !== "client" && (
-          <Sider
-            width={220}
-            theme="light"
-            style={{
-              borderRight: "1px solid #f0f0f0",
-              boxShadow: "0 2px 8px rgba(0, 0, 0, 0.06)",
-              zIndex: 1,
-              fontSize: "smaller",
-            }}
-          >
-            <div className="p-4">
-              <div className="flex items-center">
-                <UserOutlined className="mr-2 text-gray-500" />
-                <span className="text-sm font-medium mb-1">Clients</span>
-              </div>
-
-              <div className="flex items-center justify-between mb-2 space-x-2">
-                <Input
-                  placeholder="Search clients..."
-                  prefix={<SearchOutlined style={{ color: "#bfbfbf" }} />}
-                  className="rounded"
-                  size="small"
-                // onChange={(e) => {
-                //   const filteredClients = mockClients.filter((client) => client.name.toLowerCase().includes(e.target.value.toLowerCase()));
-                //   setShowOnlyPending(filteredClients.length > 0 ? filteredClients : []);
-                // }}
-                />
-                <Tooltip title="Show only clients with queries yet to respond">
-                  <Switch
-                    checked={showOnlyPending}
-                    onChange={() => setShowOnlyPending((prev) => !prev)}
-                    // className="mr-2"
-                    size="small"
-                  />
-                </Tooltip>
+          <Sider width={220} theme="light" style={{ borderRight: "1px solid #f0f0f0", boxShadow: "0 2px 8px rgba(0, 0, 0, 0.06)", zIndex: 1, fontSize: "smaller" }}>
+            <div className="p-4"><div className="flex items-center"><UserOutlined className="mr-2 text-gray-500" /><span className="text-sm font-medium mb-1">Clients</span></div>
+              <div className="flex items-center justify-between mb-2 space-x-2"><Input placeholder="Search clients..." prefix={<SearchOutlined style={{ color: "#bfbfbf" }} />} className="rounded" size="small" />
+                <Tooltip title="Show only clients with queries yet to respond"><Switch checked={showOnlyPending} onChange={() => setShowOnlyPending((prev) => !prev)} size="small" /></Tooltip>
               </div>
               <div className="space-y-1 mt-4">
                 {filteredClients.map((client) => (
-                  <div
-                    key={client.name}
-                    className={`flex items-center p-2 rounded cursor-pointer hover:bg-gray-100 dark:bg-[#1e1e1e] dark:hover:bg-gray-700 ${selectedClient === client.name ? "bg-blue-50 border-l-4 border-blue-500 pl-1 dark:bg-blue dark:border-blue-500" : "pl-3 dark:bg-[#1e1e1e]"
-                      }`}
-                    onClick={() => handleClientClick(client.name)}
-                  >
+                  <div key={client.name} className={`flex items-center p-2 rounded cursor-pointer hover:bg-gray-100 dark:bg-[#1e1e1e] dark:hover:bg-gray-700 ${selectedClient === client.name ? "bg-blue-50 border-l-4 border-blue-500 pl-1 dark:bg-blue dark:border-blue-500" : "pl-3 dark:bg-[#1e1e1e]"}`} onClick={() => handleClientClick(client.name)}>
                     <UserOutlined className="mr-2 text-gray-500" />
                     <span className="flex-1">{client.name}</span>
                     <div className="flex items-center">
-                      {client.notifications > 0 && (
-                        <Badge
-                          count={client.notifications}
-                          size="small"
-                          style={{ backgroundColor: "#ecdbda", color: "#f5222d", marginRight: "4px", border: "none" }}
-                        />
-                      )}
-                      {/* {client.alerts > 0 && (
-                        <Badge
-                          count={<WarningOutlined style={{ color: "#FFA940", fontSize: "10px" }} />}
-                          size="small"
-                          style={{ backgroundColor: "#FFF7E6", border: "1px solid #FFD591" }}
-                        />
-                      )} */}
+                      {client.notifications > 0 && <Badge count={client.notifications} size="small" style={{ backgroundColor: "#ecdbda", color: "#f5222d", marginRight: "4px", border: "none" }} />}
                     </div>
                   </div>
                 ))}
@@ -542,16 +461,12 @@ const ViewClients = () => {
         )}
         {/* Main content */}
         <Content className="bg-gray-50">
-          {activeMainTab === "queryhub" || activeMainTab === "results" ? (
-           
-            <QueryHubNew/>
-          ) : (activeMainTab === "questionnaire" ? <ClientQuestionaire />
+          {activeMainTab === "queryhub" || activeMainTab === "results" ? <QueryHubNew/>
+          : (activeMainTab === "questionnaire" ? <ClientQuestionaire />
             : activeMainTab === "reminder-history" ? <ReminderHistory />
               : activeMainTab === "jobs" ? <JobsManagement />
                 : activeMainTab === "query-builder" ? <QueryBuilder />
                   :<ClientQuestionaire   /> )}
-             
-
         </Content>       
       </Layout>
       {/* <Settings visible={settingsModalVisible} onCancel={hideSettingsModal} onSave={handleCompanySelect}  defaultCompany={selectedCompany}  /> */}

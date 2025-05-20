@@ -1,6 +1,6 @@
 import type React from "react"
 import { Link } from "react-router-dom"
-import { TeamOutlined, HistoryOutlined, SettingOutlined, UserOutlined,
+import { TeamOutlined, HistoryOutlined, UserOutlined, QuestionCircleOutlined,
   //  QuestionCircleOutlined 
   } from "@ant-design/icons"
 // import { useSelector } from "react-redux"
@@ -30,13 +30,13 @@ const TabNavigation = () => {
     //   icon: <HomeOutlined />,
     //   hidden: user_control?.role === "client",
     // },
-    {
-      key: "assignments",
-      path: "/assignments",
-      label: "Assignments",
-      icon: <UserOutlined />,
-      hidden: user_control?.role === "client",
-    },
+    // {
+    //   key: "assignments",
+    //   path: "/assignments",
+    //   label: "Assignments",
+    //   icon: <UserOutlined />,
+    //   hidden: user_control?.role === "client",
+    // },
     {
       key: "rules-builder",
       path: "/add-rule",
@@ -44,13 +44,13 @@ const TabNavigation = () => {
       icon: <UserOutlined />,
       hidden: user_control?.role === "client",
     },
-    {
-      key: "clients",
-      path: "/clients",
-      label: "Client Management",
-      icon: <TeamOutlined />,
-      hidden: user_control?.role === "client",
-    },
+    // {
+    //   key: "clients",
+    //   path: "/clients",
+    //   label: "Client Management",
+    //   icon: <TeamOutlined />,
+    //   hidden: user_control?.role === "client",
+    // },
     // {
     //   key: "view-clients",
     //   path: "/view-clients",
@@ -64,11 +64,18 @@ const TabNavigation = () => {
     //   label: "Questionnaire",
     //   icon: <FileTextOutlined />,
     // },
+    // {
+    //   key: "reminder-history",
+    //   path: "/reminder-history",
+    //   label: "Reminder History",
+    //   icon: <HistoryOutlined />,
+    //   hidden: user_control?.role === "client",
+    // },
     {
-      key: "reminder-history",
-      path: "/reminder-history",
-      label: "Reminder History",
-      icon: <HistoryOutlined />,
+      key: "client-activities",
+      path: "/client-activities",
+      label: "Clients",
+      icon: <TeamOutlined  />,
       hidden: user_control?.role === "client",
     },
     // {

@@ -1079,14 +1079,9 @@ const ClientQuestionaire = () => {
   const user_control = JSON.parse(sessionStorage.getItem("user") || "{}")
   // const routerName = useLocation().pathname
   return (
-    <div
-      className={`flex flex-col min-h-screen dark:bg-gray-900 dark:text-white bg-gray-50 ${user_control?.role === "client" ? "p-4 md:p-6" : ""}`}
-    >
+    <div className={`flex flex-col min-h-screen dark:bg-gray-900 dark:text-white bg-gray-50 ${user_control?.role === "client" ? "p-4 md:p-6" : ""}`}>
       {/* Statistics Dashboard */}
-      <div
-        className="dark:bg-gray-900 dark:text-white"
-        style={{ borderBottom: "1px solid #f0f0f0", boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}
-      >
+      <div className="dark:bg-gray-900 dark:text-white" style={{ borderBottom: "1px solid #f0f0f0", boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
         <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 1.5rem 1.5rem" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "24px" }}>
             <Card bordered={false} style={{ borderLeft: "4px solid #d9d9d9" }}>

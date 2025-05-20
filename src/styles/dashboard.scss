@@ -97,6 +97,8 @@
   .ant-table-cell {
     vertical-align: middle;
   }
+    scrollbar-width: thin;
+    scroll-behavior: smooth;
 }
 
 /* Client management table styles */
