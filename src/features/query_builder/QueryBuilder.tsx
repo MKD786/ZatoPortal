@@ -10,7 +10,6 @@ import {
   Select,
   Modal,
   Form,
-  Tag,
   Space,
   Typography,
   // Row,
@@ -551,14 +550,6 @@ const QueryBuilder = () => {
         return ""
     }
   }
-  // Calculate statistics
-  // const totalQuestions = questions.length
-  // const answeredQuestions = questions.filter((q) => q.status === "posted").length
-  // const draftQuestions = questions.filter((q) => q.status === "draft").length
-  // const unansweredQuestions = questions.filter((q) => q.status === "unanswered").length
-  // const progressPercentage = Math.round((answeredQuestions / totalQuestions) * 100)
-
-  // Group questions by section
   const sections = [...new Set(questions.map((q) => q.section))]
   const questionsBySection: SectionData[] = sections.map((section) => {
     const sectionQuestions = questions.filter((q) => q.section === section)
@@ -609,216 +600,187 @@ const QueryBuilder = () => {
 
   return (
     <div style={{ maxWidth: '100%', margin: "0 auto", padding: "5px 0rem 0rem 0.5rem" }}>
-        <div style={{ padding: "0rem 0.3rem 0rem 0rem" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-                <div style={{ display: "flex", flexDirection: "column", width: "100%" }}>
-                  {/* Midjob Query Tabs */}
-                  {midjobQueries.length > 0 && (
-                    <div style={{ borderBottom: "1px solid #f0f0f0", marginBottom: 16 }}>
-                      <div style={{ display: "flex", alignItems: "center", overflowX: "auto", paddingBottom: 8 }}>
-                        <Text strong style={{ marginRight: 8, whiteSpace: "nowrap" }}>
-                          Mid Job Query:
-                        </Text>
-                        <Button
-                          type={activeMidjobQueryId === null ? "primary" : "default"}
-                          size="small"
-                          onClick={() => setActiveMidjobQueryId(null)}
-                          style={{ marginRight: 8 }}
-                        >
-                          All Queries
-                        </Button>
-
-                        {midjobQueries.map((query) => (
-                          <Button
-                            key={query.id}
-                            type={activeMidjobQueryId === query.id ? "primary" : "default"}
-                            size="small"
-                            onClick={() => setActiveMidjobQueryId(query.id)}
-                            style={{ marginRight: 8, display: "flex", alignItems: "center" }}
-                          >
-                            <span>{query.date}</span>
-                            <Tag color="blue" style={{ marginLeft: 4, fontSize: 10 }}>
-                              {query.questionIds.length}
-                            </Tag>
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ display: "flex", gap: 12 }}>
-                  <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    onClick={() => setIsAddQuestionModalVisible(true)}
-                    disabled={activeMidjobQueryId !== null}
-                  >
-                    Queries
+      <div style={{ padding: "0rem 0.3rem 0rem 0rem", position: "relative" }}>
+        {/* <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+          <div style={{ display: "flex", flexDirection: "column", width: "100%" }}>
+            {midjobQueries.length > 0 && (
+              <div style={{ borderBottom: "1px solid #f0f0f0", marginBottom: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", overflowX: "auto", paddingBottom: 8 }}>
+                  <Text strong style={{ marginRight: 8, whiteSpace: "nowrap" }}>Mid Job Query:</Text>
+                  <Button type={activeMidjobQueryId === null ? "primary" : "default"} size="small"
+                    onClick={() => setActiveMidjobQueryId(null)} style={{ marginRight: 8 }}>
+                    All Queries
                   </Button>
-
-                  <Button
-                    type="primary"
-                    onClick={handleSendSelectedQuestions}
-                    disabled={selectedQuestions.length === 0 || activeMidjobQueryId !== null}
-                    style={{ backgroundColor: "#52c41a", borderColor: "#52c41a" }}
-                  >
-                    Send Selected Queries
-                  </Button>
+                  {midjobQueries.map((query) => (
+                    <Button key={query.id} type={activeMidjobQueryId === query.id ? "primary" : "default"}
+                      size="small" onClick={() => setActiveMidjobQueryId(query.id)} style={{ marginRight: 8, display: "flex", alignItems: "center" }}>
+                      <span>{query.date}</span>
+                      <Tag color="blue" style={{ marginLeft: 4, fontSize: 10 }}>{query.questionIds.length}</Tag>
+                    </Button>
+                  ))}
                 </div>
               </div>
-
-              {/* Now, let's filter the questions based on the active midjob query */}
-              {questionsBySection.map((section) => {
-                // Get all question IDs that are part of any midjob query
-                const allMidjobQuestionIds = midjobQueries.flatMap((query) => query.questionIds)
-
-                // Filter questions based on whether a midjob query is active
-                const filteredQuestions = activeMidjobQueryId
-                  ? section.questions.filter((q) => {
-                      const activeQuery = midjobQueries.find((query) => query.id === activeMidjobQueryId)
-                      return activeQuery?.questionIds.includes(q.id)
-                    })
-                  : section.questions.filter((q) => !allMidjobQuestionIds.includes(q.id)) // Exclude questions that are part of any midjob query
-
-                // Skip sections with no questions after filtering
-                if (filteredQuestions.length === 0) return null
-
-                return (
-                  <div key={section.name} style={{ marginBottom: 32 }}>
-                    <div className="sectionHeader">
-                      <Title level={4}>{section.name}</Title>
-                    </div>
-
-                    {filteredQuestions.map((question) => (
-                      <Card key={question.id} className="questionCard" size="small">
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                          {/* Left side: Module, date, and question text */}
-                          <div style={{ display: "flex", alignItems: "flex-start", gap: 12, flex: 1 }}>
-                            <Checkbox
-                              checked={selectedQuestions.includes(question.id)}
-                              onChange={() => handleCheckboxChange(question.id)}
-                              disabled={activeMidjobQueryId !== null}
-                            />
-
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                                <span className={`moduleTag ${getModuleTagClass(question.module)}`}>
-                                  {question.module}
-                                </span>
-                                <span style={{ fontSize: 12, color: "#8c8c8c", display: "flex", alignItems: "center" }}>
-                                  <CalendarOutlined style={{ fontSize: 12, marginRight: 4 }} />
-                                  {question.date}
-                                </span>
-                              </div>
-
-                              {editingQuestionId === question.id ? (
-                                <div style={{ width: "100%", marginTop: 4 }}>
-                                  <div className="inputContainer">
-                                    <div className="inputArea">
-                                      <TextArea
-                                        value={editText}
-                                        onChange={(e) => setEditText(e.target.value)}
-                                        placeholder="Edit your question here..."
-                                        autoSize={{ minRows: 2 }}
-                                      />
-                                    </div>
-                                    <div className="iconContainer">
-                                      <Button
-                                        type="text"
-                                        size="small"
-                                        onClick={() => checkGrammar(editText)}
-                                        icon={<EditFilled />}
-                                        title="Check grammar and spelling"
-                                        style={{ marginRight: 4 }}
-                                      />
-                                      <Button
-                                        type="text"
-                                        size="small"
-                                        onClick={saveEditedQuestion}
-                                        icon={<SaveOutlined />}
-                                        style={{ marginRight: 4 }}
-                                      />
-                                      <Button type="text" size="small" onClick={cancelEdit} icon={<CloseOutlined />} />
-                                    </div>
-                                  </div>
-                                </div>
-                              ) : (
-                                <Text strong>{question.text}</Text>
-                              )}
-                            </div>
-                          </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-                            {/* Question type options */}
-                            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                              <Text type="secondary" style={{ fontSize: 12, fontWeight: 500 }}>
-                                Query Type
-                              </Text>
-                              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                                <Checkbox
-                                  checked={question.isYesNo}
-                                  onChange={() => toggleQuestionType(question.id, "isYesNo")}
-                                  disabled={activeMidjobQueryId !== null}
-                                >
-                                  <Text style={{ color: activeMidjobQueryId !== null ? "#d9d9d9" : "inherit" }}>
-                                    Yes/No
-                                  </Text>
-                                </Checkbox>
-
-                                <Checkbox
-                                  checked={question.hasFileAttachment}
-                                  onChange={() => toggleQuestionType(question.id, "hasFileAttachment")}
-                                  disabled={question.isYesNo || activeMidjobQueryId !== null}
-                                >
-                                  <Text
-                                    style={{
-                                      color: question.isYesNo || activeMidjobQueryId !== null ? "#d9d9d9" : "inherit",
-                                    }}
-                                  >
-                                    File
-                                  </Text>
-                                </Checkbox>
-
-                                <Checkbox
-                                  checked={question.hasTextResponse}
-                                  onChange={() => toggleQuestionType(question.id, "hasTextResponse")}
-                                  disabled={question.isYesNo || activeMidjobQueryId !== null}
-                                >
-                                  <Text
-                                    style={{
-                                      color: question.isYesNo || activeMidjobQueryId !== null ? "#d9d9d9" : "inherit",
-                                    }}
-                                  >
-                                    Text
-                                  </Text>
-                                </Checkbox>
-                              </div>
-                            </div>
-
-                            {/* Edit and Delete buttons */}
-                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                              <Button
-                                type="text"
-                                icon={<EditOutlined />}
-                                onClick={() => handleEditQuestion(question)}
-                                disabled={activeMidjobQueryId !== null}
-                              />
-                              <Button
-                                type="text"
-                                icon={<DeleteOutlined />}
-                                onClick={() => handleDeleteQuestion(question.id)}
-                                danger
-                                disabled={activeMidjobQueryId !== null}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
-                )
-              })}
+            )}
+          </div>
+          <div style={{ display: "flex", gap: 12 }}>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsAddQuestionModalVisible(true)}
+              disabled={activeMidjobQueryId !== null}>Queries</Button>
+            <Button type="primary" onClick={handleSendSelectedQuestions}
+              disabled={selectedQuestions.length === 0 || activeMidjobQueryId !== null}
+              style={{ backgroundColor: "#52c41a", borderColor: "#52c41a" }}>Send Selected Queries</Button>
+          </div>
+        </div> */}
+        <div style={{ display: "flex", gap: 12, float: "right" }}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsAddQuestionModalVisible(true)}
+            disabled={activeMidjobQueryId !== null}>Queries</Button>
+          <Button type="primary" onClick={handleSendSelectedQuestions}
+            disabled={selectedQuestions.length === 0 || activeMidjobQueryId !== null}
+            style={{ backgroundColor: "#52c41a", borderColor: "#52c41a" }}>Send Selected Queries</Button>
         </div>
+        <div className="overflow-auto h-[68vh] w-full">
+        {questionsBySection.map((section) => {
+          const allMidjobQuestionIds = midjobQueries.flatMap((query) => query.questionIds)
+          const filteredQuestions = activeMidjobQueryId
+            ? section.questions.filter((q) => {
+              const activeQuery = midjobQueries.find((query) => query.id === activeMidjobQueryId)
+              return activeQuery?.questionIds.includes(q.id)
+            })
+            : section.questions.filter((q) => !allMidjobQuestionIds.includes(q.id))
+          if (filteredQuestions.length === 0) return null
+
+          return (
+            <div key={section.name}>
+              <div className="sectionHeader"><Title level={4}>{section.name}</Title></div>
+              {filteredQuestions.map((question) => (
+                <Card key={question.id} className="questionCard mb-2" size="small">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    {/* Left side: Module, date, and question text */}
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 12, flex: 1 }}>
+                      <Checkbox
+                        checked={selectedQuestions.includes(question.id)}
+                        onChange={() => handleCheckboxChange(question.id)}
+                        disabled={activeMidjobQueryId !== null}
+                      />
+
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                          <span className={`moduleTag ${getModuleTagClass(question.module)}`}>
+                            {question.module}
+                          </span>
+                          <span style={{ fontSize: 12, color: "#8c8c8c", display: "flex", alignItems: "center" }}>
+                            <CalendarOutlined style={{ fontSize: 12, marginRight: 4 }} />
+                            {question.date}
+                          </span>
+                        </div>
+
+                        {editingQuestionId === question.id ? (
+                          <div style={{ width: "100%", marginTop: 4 }}>
+                            <div className="inputContainer">
+                              <div className="inputArea">
+                                <TextArea
+                                  value={editText}
+                                  onChange={(e) => setEditText(e.target.value)}
+                                  placeholder="Edit your question here..."
+                                  autoSize={{ minRows: 2 }}
+                                />
+                              </div>
+                              <div className="iconContainer">
+                                <Button
+                                  type="text"
+                                  size="small"
+                                  onClick={() => checkGrammar(editText)}
+                                  icon={<EditFilled />}
+                                  title="Check grammar and spelling"
+                                  style={{ marginRight: 4 }}
+                                />
+                                <Button
+                                  type="text"
+                                  size="small"
+                                  onClick={saveEditedQuestion}
+                                  icon={<SaveOutlined />}
+                                  style={{ marginRight: 4 }}
+                                />
+                                <Button type="text" size="small" onClick={cancelEdit} icon={<CloseOutlined />} />
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <Text strong>{question.text}</Text>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+                      {/* Question type options */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        <Text type="secondary" style={{ fontSize: 12, fontWeight: 500 }}>
+                          Query Type
+                        </Text>
+                        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                          <Checkbox
+                            checked={question.isYesNo}
+                            onChange={() => toggleQuestionType(question.id, "isYesNo")}
+                            disabled={activeMidjobQueryId !== null}
+                          >
+                            <Text style={{ color: activeMidjobQueryId !== null ? "#d9d9d9" : "inherit" }}>
+                              Yes/No
+                            </Text>
+                          </Checkbox>
+
+                          <Checkbox
+                            checked={question.hasFileAttachment}
+                            onChange={() => toggleQuestionType(question.id, "hasFileAttachment")}
+                            disabled={question.isYesNo || activeMidjobQueryId !== null}
+                          >
+                            <Text
+                              style={{
+                                color: question.isYesNo || activeMidjobQueryId !== null ? "#d9d9d9" : "inherit",
+                              }}
+                            >
+                              File
+                            </Text>
+                          </Checkbox>
+
+                          <Checkbox
+                            checked={question.hasTextResponse}
+                            onChange={() => toggleQuestionType(question.id, "hasTextResponse")}
+                            disabled={question.isYesNo || activeMidjobQueryId !== null}
+                          >
+                            <Text
+                              style={{
+                                color: question.isYesNo || activeMidjobQueryId !== null ? "#d9d9d9" : "inherit",
+                              }}
+                            >
+                              Text
+                            </Text>
+                          </Checkbox>
+                        </div>
+                      </div>
+
+                      {/* Edit and Delete buttons */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <Button
+                          type="text"
+                          icon={<EditOutlined />}
+                          onClick={() => handleEditQuestion(question)}
+                          disabled={activeMidjobQueryId !== null}
+                        />
+                        <Button
+                          type="text"
+                          icon={<DeleteOutlined />}
+                          onClick={() => handleDeleteQuestion(question.id)}
+                          danger
+                          disabled={activeMidjobQueryId !== null}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )
+        })}
+      </div>
+      </div>
 
       {/* Add Question Modal */}
       <Modal

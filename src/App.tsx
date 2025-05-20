@@ -32,6 +32,8 @@ const ClientView = React.lazy(() => import("./features/client_overview/ClientVie
 const OtpVerification = React.lazy(() => import("./features/auth/OtpVerification"))
 const AddRule = React.lazy(() => import("./features/add_rule/AddRule"))
 const QueryBuilder = React.lazy(() => import("./features/query_builder/QueryBuilder"))
+const RoleManagement = React.lazy(() => import("./features/assignments/RoleManagement"))
+const ClientActivities = React.lazy(() => import("./features/clients/ClientActivities"))
 function App() {
   const { theme } = useSelector((state: RootState) => state.theme)
   const { isAuthenticated } = useSelector((state: RootState) => state.auth)
@@ -67,6 +69,8 @@ function App() {
                 <Route path="/client-view" element={<ClientView />} />
                 <Route path="/add-rule" element={<AddRule />} />
                 <Route path="/rules-builder" element={<QueryBuilder />} />
+                <Route path="/role-management" element={<RoleManagement />} />
+                <Route path="/client-activities" element={<ClientActivities />} />
               </Route>
             </Route>
 

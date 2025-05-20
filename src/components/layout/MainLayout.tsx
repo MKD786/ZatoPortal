@@ -102,6 +102,12 @@ const MainLayout = () => {
       icon: <LogoutOutlined />,
       onClick: handleLogout,
     },
+    {
+      key: "role-management",
+      label: "Role Management",
+      icon: <UserOutlined />,
+      onClick: () => navigate("/role-management"),
+    },
   ]
 
   const user_control = JSON.parse(sessionStorage.getItem("user") || "{}")
@@ -150,7 +156,6 @@ const MainLayout = () => {
           </Dropdown>
         </div>
       </Header>
-
       {routerName !== "/client-view" ? (
         <>
           {user_control?.role !== "client" ? (
@@ -172,22 +177,14 @@ const MainLayout = () => {
           )}
         </>
       ) : (
-          <ClientView />
+        <ClientView />
       )}
-
       <LogoutModal visible={logoutModalVisible} onCancel={hideLogoutModal} />
       <SettingsModal visible={settingsModalVisible} onCancel={hideSettingsModal} />
-      <Footer
-        className="fixed bottom-0 right-0 z-10 w-full text-end text-gray-500 dark:text-gray-400 p-0"
-        style={{ padding: "0.3rem 0.5rem" }}
-      >
+      <Footer className="fixed bottom-0 right-0 z-10 w-full text-end text-gray-500 dark:text-gray-400 p-0" style={{ padding: "0.3rem 0.5rem" }}>
         <div className="flex justify-end items-center gap-2">
-          <p className="text-gray-500 dark:text-gray-400 text-xs" style={{ color: "#c6cbd5" }}>
-            Powered by
-          </p>
-          <div className="w-10">
-            <img src={ZatoLogoDark || "/placeholder.svg"} alt="Zato Logo" width="100%" height="100%" />
-          </div>
+          <p className="text-gray-500 dark:text-gray-400 text-xs" style={{ color: "#c6cbd5" }}>Powered by</p>
+          <div className="w-10"><img src={ZatoLogoDark || "/placeholder.svg"} alt="Zato Logo" width="100%" height="100%" /></div>
         </div>
       </Footer>
     </Layout>

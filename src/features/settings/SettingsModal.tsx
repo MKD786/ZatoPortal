@@ -120,19 +120,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ visible, onCancel }) => {
 
   
   return (
-    <Modal
-      title="Settings"
-      open={visible}
-      onCancel={onCancel}
+    <Modal title="Settings" open={visible} onCancel={onCancel} footer={null}
       // width={700}
-      footer={[
-        <Button key="cancel" onClick={onCancel}>
-          Cancel
-        </Button>,
-        <Button key="save" type="primary" icon={<SaveOutlined />} loading={loading} onClick={handleSave}>
-          Save Changes
-        </Button>,
-      ]}
+      // footer={[
+      //   <Button key="cancel" onClick={onCancel}>
+      //     Cancel
+      //   </Button>,
+      //   <Button key="save" type="primary" icon={<SaveOutlined />} loading={loading} onClick={handleSave}>
+      //     Save Changes
+      //   </Button>,
+      // ]}
       className="settings-modal"
     >
      <Card bordered={false} className="rounded-xl shadow-sm">
@@ -363,11 +360,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ visible, onCancel }) => {
                                />
                              </Form.Item>
      
-                             <div className="flex justify-end mt-6">
-                               <Button type="primary" htmlType="submit">
-                                 Save Changes
-                               </Button>
-                             </div>
+                             <div className="flex justify-end mt-6 bottom-0 right-3 w-full bg-white z-50"><Button type="primary" htmlType="submit"> Save Changes </Button></div>
                            </div>
                          </Form>
                        </div>
@@ -393,7 +386,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ visible, onCancel }) => {
                            {/* Notification Preferences */}
                            <Divider style={{ padding: '0.3rem 0', margin: '0' }} />
                            <div className="flex justify-between align-center gap-2">
-                             <div className="w-[50%] h-[100%] pr-2">
+                             <div className="w-[100%] h-[100%] pr-2">
                                <Typography.Title level={5} style={{ fontSize: '1rem', fontWeight: '500' }}>Notification Preferences</Typography.Title>
                                <div className="flex justify-between items-center mb-2">
                                  {/* Left: Label and description */}
@@ -430,7 +423,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ visible, onCancel }) => {
                                  </Form.Item>
                                </div>
                              </div>
-                             <div className="w-[50%] h-[100%] pl-2">
+                             {/* <div className="w-[50%] h-[100%] pl-2">
                                <Typography.Title level={5} style={{ fontSize: '1rem', fontWeight: '500' }}>Notification Types</Typography.Title>
                                <div className="flex justify-between items-center mb-2">
                                  <div>
@@ -451,7 +444,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ visible, onCancel }) => {
                                  </Form.Item>
                                </div>
      
-                               {/* <div className="flex justify-between items-center mb-4">
+                               <div className="flex justify-between items-center mb-4">
                              <div>
                                <div className="font-semibold" style={{ fontSize: '0.8rem', fontWeight: '500' }}>Document Notifications</div>
                                <div className="text-gray-500 text-sm" style={{ fontSize: '0.8rem' }}>Notifications about document uploads and updates</div>
@@ -459,8 +452,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ visible, onCancel }) => {
                              <Form.Item name="documentNotifications" valuePropName="checked" noStyle>
                                <Switch />
                              </Form.Item>
-                           </div> */}
-                             </div>
+                           </div>
+                             </div> */}
                            </div>
                            {/* Email Settings */}
                            <Divider style={{ margin: '15px' }} />
@@ -582,9 +575,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ visible, onCancel }) => {
                              </div>
                            </Col>
                          </Row>
-     
-                         <Divider />
-                         <div style={{ display: 'flex', justifyContent: 'end' }}>
+                         <div className="w-full flex justify-end items-center mt-4">
                            <Form.Item>
                              <Button type="default" >
                                Reset to Defaults

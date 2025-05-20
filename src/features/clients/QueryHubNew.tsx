@@ -1277,7 +1277,7 @@ const QueryHubNew = () => {
   }
 
   return (
-    <div className={`flex flex-col min-h-screen dark:bg-gray-900 dark:text-white bg-gray-50 ${user_control?.role === "client" ? "" : ""}`} style={{ padding: "1.5rem" }}>
+    <div className={`flex flex-col min-h-screen dark:bg-gray-900 dark:text-white bg-gray-50 ${user_control?.role === "client" ? "p-4 md:p-6" : ""}`}>
       {/* Header */}
       {user_control?.role === "client" && (
         <div
