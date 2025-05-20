@@ -618,25 +618,25 @@ const ClientQuestionaire = () => {
       </div>
     ) : (
       filteredSections.map((section) => (
-            <div key={section.id} style={{ marginBottom: "32px" }}>
+            <div key={section?.id} style={{ marginBottom: "32px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                <Title level={4} style={{ margin: 0 }}>{section.name}</Title>
+                <Title level={4} style={{ margin: 0 }}>{section?.name}</Title>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <Progress percent={section.progress} style={{ width: "128px" }} size="small" strokeColor="#0f766e" showInfo={false}/>
+                  <Progress percent={section?.progress} style={{ width: "128px" }} size="small" strokeColor="#0f766e" showInfo={false}/>
                   {/* <Text strong>{section.progress}%</Text> */}
-                  {section.status === "completed" && (
+                  {section?.status === "completed" && (
                     <CheckCircleOutlined style={{ fontSize: "20px", color: "#52c41a" }} />
                   )}
-                  {section.status === "partial" && (
+                  {section?.status === "partial" && (
                     <ClockCircleOutlined style={{ fontSize: "20px", color: "#faad14" }} />
                   )}
-                  {section.status === "pending" && (
+                  {section?.status === "pending" && (
                     <ExclamationCircleOutlined style={{ fontSize: "20px", color: "#d9d9d9" }} />
                   )}
                 </div>
               </div>
 
-              {section.questions.map((question) => (
+              {section?.questions.map((question) => (
                 <div key={question.id} style={{ marginBottom: "16px" }}>
                   <Card>
                     <div style={{ padding: "8px" }}>
@@ -835,6 +835,7 @@ const ClientQuestionaire = () => {
         )}
         </div>
       </div>
+      <h1 style={{fontFamily:"poppins"}}> </h1>
 
       {/* Footer */}
       <div
