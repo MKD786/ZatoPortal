@@ -19,7 +19,7 @@ const TabNavigation = () => {
   const user_control = JSON.parse(sessionStorage.getItem("user") || "{}")
   // const location = useLocation()  
   // const currentPath = location.pathname.split("/")[1] || "dashboard"
-  const [activeKey, setActiveKey] = useState("settings")
+  const [activeKey, setActiveKey] = useState("client-activities")
   // const currentPath = location.pathname.split("/")[1] || "dashboard"
   // const currentPath = user_control.role === "client" ? "/view-clients" : "settings"
   const navItems: NavItem[] = [
@@ -78,6 +78,13 @@ const TabNavigation = () => {
       icon: <TeamOutlined  />,
       hidden: user_control?.role === "client",
     },
+    {
+      key: "jobs-new-screen",
+      path: "/jobs-new-screen",
+      label: "Jobs",
+      icon: <TeamOutlined  />,
+      hidden: user_control?.role === "client",
+    },
     // {
     //   key: "settings",
     //   path: "/settings",
@@ -109,6 +116,8 @@ const TabNavigation = () => {
         return "support"
       case "assignments":
         return "assignments"
+      case "jobs-new-screen":
+        return "jobs-new-screen"
       default:
         return "dashboard"
     }

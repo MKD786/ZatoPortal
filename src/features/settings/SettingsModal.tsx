@@ -3,7 +3,7 @@
 
 import { useState } from "react"
 import { Card, Typography, Tabs, Form, Switch, Select, Button, Divider, Row, Col, message, Input, Upload, Space, Tag ,Modal, } from "antd"
-import { BellOutlined, InfoCircleOutlined, LockOutlined, NotificationOutlined ,SaveOutlined ,CloseOutlined } from "@ant-design/icons"
+import { BellOutlined, InfoCircleOutlined, LockOutlined, NotificationOutlined } from "@ant-design/icons"
 import { MailOutlined, EditOutlined, InboxOutlined } from '@ant-design/icons';
 import './settings.scss'
 import { KeyRoundIcon, LucideAlarmCheck, LucideAlarmPlus } from "lucide-react";
@@ -51,21 +51,16 @@ interface SettingsModalProps {
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ visible, onCancel }) => {
-  const [activeTab, setActiveTab] = useState("profile")
-  const [profileForm] = Form.useForm()
-  const [securityForm] = Form.useForm()
-  const [notificationsForm] = Form.useForm()
-  const [preferencesForm] = Form.useForm()
-  const [loading, setLoading] = useState(false)
-
-
+  // const [activeTab, setActiveTab] = useState("profile")
+  // const [profileForm] = Form.useForm()
+  // const [securityForm] = Form.useForm()
+  // const [notificationsForm] = Form.useForm()
+  // const [preferencesForm] = Form.useForm()
   const [showEmailInput, setShowEmailInput] = useState(false);
   const handleGeneralSubmit = (values: any) => {
-    setLoading(true)
     setTimeout(() => {
       console.log("Updated general settings:", values)
       message.success("General settings updated successfully")
-      setLoading(false)
     }, 1000)
   }
 
@@ -81,40 +76,37 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ visible, onCancel }) => {
 
 
   
-  const handleSave = async () => {
-    try {
-      setLoading(true)
+  // const handleSave = async () => {
+  //   try {
 
-      // Determine which form to validate based on active tab
-      let formValues
-      switch (activeTab) {
-        case "profile":
-          formValues = await profileForm.validateFields()
-          break
-        case "security":
-          formValues = await securityForm.validateFields()
-          break
-        case "notifications":
-          formValues = await notificationsForm.validateFields()
-          break
-        case "preferences":
-          formValues = await preferencesForm.validateFields()
-          break
-        default:
-          break
-      }
+  //     // Determine which form to validate based on active tab
+  //     let formValues
+  //     switch (activeTab) {
+  //       case "profile":
+  //         formValues = await profileForm.validateFields()
+  //         break
+  //       case "security":
+  //         formValues = await securityForm.validateFields()
+  //         break
+  //       case "notifications":
+  //         formValues = await notificationsForm.validateFields()
+  //         break
+  //       case "preferences":
+  //         formValues = await preferencesForm.validateFields()
+  //         break
+  //       default:
+  //         break
+  //     }
 
-      // Here you would typically save the form data to your backend
-      console.log("Saving settings:", formValues)
+  //     // Here you would typically save the form data to your backend
+  //     console.log("Saving settings:", formValues)
 
-      // Show success message
-      message.success("Settings saved successfully")
-    } catch (error) {
-      console.error("Validation failed:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
+  //     // Show success message
+  //     message.success("Settings saved successfully")
+  //   } catch (error) {
+  //     console.error("Validation failed:", error)
+  //   } 
+  // }
 
 
 

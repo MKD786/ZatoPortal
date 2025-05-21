@@ -34,6 +34,7 @@ const AddRule = React.lazy(() => import("./features/add_rule/AddRule"))
 const QueryBuilder = React.lazy(() => import("./features/query_builder/QueryBuilder"))
 const RoleManagement = React.lazy(() => import("./features/assignments/RoleManagement"))
 const ClientActivities = React.lazy(() => import("./features/clients/ClientActivities"))
+const JobsNewScreen = React.lazy(() => import("./features/Jobs/JobsNewScreen"))
 function App() {
   const { theme } = useSelector((state: RootState) => state.theme)
   const { isAuthenticated } = useSelector((state: RootState) => state.auth)
@@ -71,6 +72,7 @@ function App() {
                 <Route path="/rules-builder" element={<QueryBuilder />} />
                 <Route path="/role-management" element={<RoleManagement />} />
                 <Route path="/client-activities" element={<ClientActivities />} />
+                <Route path="/jobs-new-screen" element={<JobsNewScreen />} />
               </Route>
             </Route>
 

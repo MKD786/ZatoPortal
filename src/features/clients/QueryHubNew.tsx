@@ -13,6 +13,7 @@ import {
   ArrowLeftOutlined,
   ArrowRightOutlined,
   DeleteOutlined,
+  WarningOutlined,
 } from "@ant-design/icons"
 import {
   Button,
@@ -45,6 +46,7 @@ interface TableRow {
   description: string
   amount: string
   accountCode: string
+  key?: string
 }
 
 interface Question {
@@ -62,6 +64,7 @@ interface Question {
   tableData?: TableRow[]
   date?: string
   sectionName?: string
+  progress: number
 }
 
 interface QuestionnaireSection {
@@ -98,6 +101,7 @@ interface QueryItem {
   index: number
   sectionName: string
   total?: number
+  progress: number
 }
 const { Text, Title, Paragraph } = Typography
 const { TextArea } = Input
@@ -119,15 +123,6 @@ const QueryHubNew = () => {
   const [allQueries, setAllQueries] = useState<QueryItem[]>([])
   const [unansweredQueries, setUnansweredQueries] = useState<QueryItem[]>([])
   const [tableData, setTableData] = useState<TableRow[]>([])
-  // const questionnaireInfo = {
-  //   clientName: " Sample Client",
-  //   type: "Queries",
-  //   fiscalYear: "1 April 20XX to 31 March 20XX",
-  //   dueDate: "30 April 20XX",
-  //   assignedManager: "Jane Smith",
-  //   status: "In Progress",
-  //   lastUpdated: "15 April 20XX",
-  // }
 
   // Add dates to the questions
   const [questionnaireSections, setQuestionnaireSections] = useState<QuestionnaireSection[]>([
@@ -150,6 +145,7 @@ const QueryHubNew = () => {
           files: [],
           date: "2024-04-12",
           sectionName: "Trading Information",
+          progress: 100,
         },
       ],
     },
@@ -180,6 +176,7 @@ const QueryHubNew = () => {
             },
           ],
           sectionName: "Bank / Credit Card",
+          progress: 50,
         },
       ],
     },
@@ -202,6 +199,7 @@ const QueryHubNew = () => {
           files: [],
           date: "2024-04-27",
           sectionName: "Loans",
+          progress: 0,
         },
       ],
     },
@@ -233,6 +231,7 @@ const QueryHubNew = () => {
           ],
           date: "2024-05-10",
           sectionName: "Accounts Payable",
+          progress: 63,
         },
       ],
     },
@@ -287,6 +286,7 @@ const QueryHubNew = () => {
           index: 1,
           sectionName: section?.name || "",
           total: 1,
+          progress: question.progress,
         }
 
         setQuery(queryItem)
@@ -343,6 +343,7 @@ const QueryHubNew = () => {
             ...question,
             status: "draft",
             answered: true,
+            progress: Math.round((question.progress / 100) * 50),
             submittedDate: new Date().toISOString().split("T")[0],
             submittedBy: user.name || "Current User",
           }
@@ -369,23 +370,43 @@ const QueryHubNew = () => {
     }
   }
 
-  
+   const handlePostAllDrafts = () => {
+      const updatedSections = [...questionnaireSections]
+      let draftQuestionsCount = 0
+      updatedSections.forEach((section, sectionIndex) => {
+        section.questions.forEach((question, questionIndex) => {
+          if (question.status === "draft") {
+            draftQuestionsCount++
+            updatedSections[sectionIndex].questions[questionIndex] = {
+              ...question,
+              status: "posted",
+              progress: 100, // Set progress to 100% when posting
+              submittedDate: new Date().toISOString().split("T")[0],
+              submittedBy: user.name || "Current User",
+            }
+          }
+        })
+        const totalSectionQuestions = section.questions.length
+        const answeredSectionQuestions = updatedSections[sectionIndex].questions.filter(
+          (q) => q.status === "posted",
+        ).length
+        updatedSections[sectionIndex].progress = Math.round((answeredSectionQuestions / totalSectionQuestions) * 100)
+        if (updatedSections[sectionIndex].progress === 100) {
+          updatedSections[sectionIndex].status = "completed"
+        } else if (updatedSections[sectionIndex].progress > 0) {
+          updatedSections[sectionIndex].status = "partial"
+        } else {
+          updatedSections[sectionIndex].status = "pending"
+        }
+      })
+      setQuestionnaireSections(updatedSections)
+      if (draftQuestionsCount > 0) {
+        message.success(`${draftQuestionsCount} draft questions posted successfully!`)
+      } else {
+        message.info("No draft questions to post.")
+      }
+    }
 
-  // Filter questions based on active tab only
-  // const filteredSections = questionnaireSections
-  //   .map((section) => {
-  //     if (activeTab === "all") return section
-  //     return {
-  //       ...section,
-  //       questions: section.questions.filter((q) => {
-  //         if (activeTab === "unanswered") return q.status === "unanswered"
-  //         if (activeTab === "draft") return q.status === "draft"
-  //         if (activeTab === "posted") return q.status === "posted"
-  //         return true
-  //       }),
-  //     }
-  //   })
-  //   .filter((section) => section.questions.length > 0)
   const filteredSections = questionnaireSections
     .map((section) => {
       const filteredQuestions = section.questions.filter((q) => {
@@ -459,6 +480,7 @@ const QueryHubNew = () => {
           urgency: getUrgencyByStatus(question.status),
           index: allQueriesArray.length + 1,
           sectionName: section.name,
+          progress: question.progress,
         }
 
         allQueriesArray.push(queryItem)
@@ -516,7 +538,7 @@ const QueryHubNew = () => {
         resetResponseInputs(currentQuery.type)
       }
     } else {
-      alert("There are no unanswered queries to respond to.")
+      message.info("There are no unanswered queries to respond to.")
     }
   }
   const handlePreviousQuery = () => {
@@ -559,15 +581,6 @@ const QueryHubNew = () => {
     resetResponseInputs("")
   }
 
-  // Function to calculate elapsed days
-  // const calculateElapsedDays = (raisedDate: string) => {
-  //   const raised = new Date(raisedDate)
-  //   const today = new Date()
-  //   const diffTime = Math.abs(today.getTime() - raised.getTime())
-  //   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-  //   return diffDays
-  // }
-
   // Function to update section progress
   const updateSectionProgress = (sectionId: string) => {
     const updatedSections = [...questionnaireSections]
@@ -598,7 +611,7 @@ const QueryHubNew = () => {
   }
 
   // Function to handle submit
-  const handleSubmit = () => {
+  const handleSubmit = (action: "draft" | "post" = "draft") => {
     if (query) {
       // Find the section and question to update
       const sectionIndex = questionnaireSections.findIndex((s) => s.questions.some((q) => q.id === query.id))
@@ -615,34 +628,46 @@ const QueryHubNew = () => {
           if (query.type === "yesno") {
             updatedSections[sectionIndex].questions[questionIndex] = {
               ...updatedSections[sectionIndex].questions[questionIndex],
-              status: "draft",
+              status: action === "post" ? "posted" : "draft",
+              progress: action === "post" ? 100 : Math.round((query.progress / 100) * 100), // Set progress based on action
               answered: true,
               answer: yesNoAnswer,
+              submittedDate: new Date().toLocaleDateString(),
+              submittedBy: user.name || "Current User",      
             }
           } else if (query.type === "file") {
             updatedSections[sectionIndex].questions[questionIndex] = {
               ...updatedSections[sectionIndex].questions[questionIndex],
-              status: "draft",
+              status: action === "post" ? "posted" : "draft",
+              progress: action === "post" ? 100 : Math.round((query.progress / 100) * 100), // Set progress based on action
               answered: true,
               files: fileList.map((file) => ({
                 name: file.name,
                 category: "Uploaded File",
                 explanation: "",
               })),
+              submittedDate: new Date().toLocaleDateString(),
+              submittedBy: user.name || "Current User",
             }
           } else if (query.type === "table") {
             updatedSections[sectionIndex].questions[questionIndex] = {
               ...updatedSections[sectionIndex].questions[questionIndex],
-              status: "draft",
+              status: action === "post" ? "posted" : "draft",
+              progress: action === "post" ? 100 : Math.round((query.progress / 100) * 100), // Set progress based on action
               answered: true,
               tableData: tableData,
+              submittedDate: new Date().toLocaleDateString(),
+              submittedBy: user.name || "Current User",
             }
           } else {
             updatedSections[sectionIndex].questions[questionIndex] = {
               ...updatedSections[sectionIndex].questions[questionIndex],
-              status: "draft",
+              status: action === "post" ? "posted" : "draft",
+              progress: action === "post" ? 100 : Math.round((query.progress / 100) * 100), // Set progress based on action
               answered: true,
               textAnswer: response,
+              submittedDate: new Date().toLocaleDateString(),
+              submittedBy: user.name || "Current User",
             }
           }
 
@@ -654,14 +679,15 @@ const QueryHubNew = () => {
         }
       }
 
-      alert("Response submitted successfully!")
+      message.success(`Response ${action === "post" ? "posted" : "saved as draft"} successfully!`)
 
       // Move to the next query instead of closing the modal
       if (currentQueryIndex < allQueries.length - 1) {
         handleNextQuery()
       } else {
+        // If this is the last query, then close the modal
+        message.success("All queries have been answered!")
         handleCloseModal()
-        alert("All queries have been responded to!")
       }
     }
   }
@@ -679,11 +705,13 @@ const QueryHubNew = () => {
           const updatedSections = [...questionnaireSections]
           const sectionId = updatedSections[sectionIndex].id
           const newStatus = action === "save" ? "draft" : "posted"
+          const newProgress = action === "save" ? Math.round((selectedQuestion.progress / 100) * 100) : 100
 
           if (selectedQuestion.type === "yesno") {
             updatedSections[sectionIndex].questions[questionIndex] = {
               ...updatedSections[sectionIndex].questions[questionIndex],
               status: newStatus,
+              progress: newProgress,
               answered: true,
               answer: yesNoAnswer,
               submittedDate: new Date().toISOString().split("T")[0],
@@ -692,7 +720,8 @@ const QueryHubNew = () => {
           } else if (selectedQuestion.type === "file") {
             updatedSections[sectionIndex].questions[questionIndex] = {
               ...updatedSections[sectionIndex].questions[questionIndex],
-              status: newStatus,
+              status: newStatus,              
+              progress: newProgress,
               answered: true,
               files: fileList.map((file) => ({
                 name: file.name,
@@ -706,6 +735,7 @@ const QueryHubNew = () => {
             updatedSections[sectionIndex].questions[questionIndex] = {
               ...updatedSections[sectionIndex].questions[questionIndex],
               status: newStatus,
+              progress: newProgress,
               answered: true,
               tableData: tableData,
               submittedDate: new Date().toISOString().split("T")[0],
@@ -715,6 +745,7 @@ const QueryHubNew = () => {
             updatedSections[sectionIndex].questions[questionIndex] = {
               ...updatedSections[sectionIndex].questions[questionIndex],
               status: newStatus,
+              progress: newProgress,
               answered: true,
               textAnswer: response,
               submittedDate: new Date().toISOString().split("T")[0],
@@ -727,9 +758,11 @@ const QueryHubNew = () => {
       }
 
       if (action === "save") {
-        alert("Response saved as draft.")
+        message.success("Response saved as draft.")
+        setActiveTab("draft") // Switch to draft tab after saving
       } else {
-        alert("Response posted successfully!")
+        message.success("Response posted successfully!")
+        setActiveTab("posted") // Switch to posted tab after posting
       }
       handleCloseQuestionModal()
     }
@@ -753,11 +786,13 @@ const QueryHubNew = () => {
 
           // Update the question based on its type and action
           const newStatus = action === "save" ? "draft" : "posted"
+          const newProgress = action === "save" ? Math.round((currentQuestion.progress / 100) * 100) : 100 // Set progress to 50% for draft, 100% for posted
 
           if (currentQuestion.type === "yesno") {
             updatedSections[sectionIndex].questions[questionIndex] = {
               ...updatedSections[sectionIndex].questions[questionIndex],
               status: newStatus,
+              progress: newProgress,
               answered: true,
               answer: yesNoAnswer,
               submittedDate: new Date().toISOString().split("T")[0],
@@ -767,6 +802,7 @@ const QueryHubNew = () => {
             updatedSections[sectionIndex].questions[questionIndex] = {
               ...updatedSections[sectionIndex].questions[questionIndex],
               status: newStatus,
+              progress: newProgress,
               answered: true,
               files: fileList.map((file) => ({
                 name: file.name,
@@ -780,6 +816,7 @@ const QueryHubNew = () => {
             updatedSections[sectionIndex].questions[questionIndex] = {
               ...updatedSections[sectionIndex].questions[questionIndex],
               status: newStatus,
+              progress: newProgress,
               answered: true,
               tableData: tableData,
               submittedDate: new Date().toISOString().split("T")[0],
@@ -789,6 +826,7 @@ const QueryHubNew = () => {
             updatedSections[sectionIndex].questions[questionIndex] = {
               ...updatedSections[sectionIndex].questions[questionIndex],
               status: newStatus,
+              progress: newProgress,
               answered: true,
               textAnswer: response,
               submittedDate: new Date().toISOString().split("T")[0],
@@ -805,51 +843,84 @@ const QueryHubNew = () => {
       }
 
       if (action === "save") {
-        alert("Response saved as draft.")
+        message.success("Response saved as draft.")
+        setActiveTab("draft") // Switch to draft tab after saving
       } else {
-        alert("Response posted successfully!")
+        message.success("Response posted successfully!")
+        setActiveTab("posted") // Switch to posted tab after posting
       }
       handleClosePenModal()
     }
   }
 
-  // Function to handle post all drafts
-  const handlePostAllDrafts = () => {
-    const updatedSections = [...questionnaireSections]
-    let draftQuestionsCount = 0 
-    updatedSections.forEach((section, sectionIndex) => {
-      section.questions.forEach((question, questionIndex) => {
-        if (question.status === "draft") {
-          draftQuestionsCount++
-          updatedSections[sectionIndex].questions[questionIndex] = {
-            ...question,
-            status: "posted",
-            submittedDate: new Date().toISOString().split("T")[0],
-            submittedBy: user.name || "Current User",
+  // Function to handle post single question
+  const handlePostSingleQuestion = (sectionId: string, questionId: string) => {
+    setQuestionnaireSections(prevSections => {
+      return prevSections.map(section => {
+        if (section.id === sectionId) {
+          return {
+            ...section,
+            questions: section.questions.map(question => {
+              if (question.id === questionId && question.status === "draft") {
+                return {
+                  ...question,
+                  status: "posted",
+                  progress: 100, // Set progress to 100% when posting
+                  submittedDate: new Date().toLocaleDateString(),
+                  submittedBy: user?.name || "Current User",
+                }
+              }
+              return question
+            }),
           }
         }
+        return section
       })
-   const totalSectionQuestions = section.questions.length
-      const answeredSectionQuestions = updatedSections[sectionIndex].questions.filter(
-        (q) => q.status === "draft" || q.status === "posted",
-      ).length
-      updatedSections[sectionIndex].progress = Math.round((answeredSectionQuestions / totalSectionQuestions) * 100)
-      if (updatedSections[sectionIndex].progress === 100) {
-        updatedSections[sectionIndex].status = "completed"
-      } else if (updatedSections[sectionIndex].progress > 0) {
-        updatedSections[sectionIndex].status = "partial"
-      } else {
-        updatedSections[sectionIndex].status = "pending"
-      }
-    }) 
-    setQuestionnaireSections(updatedSections)
-    if (draftQuestionsCount > 0) {
-      message.success(`${draftQuestionsCount} draft questions posted successfully!`)
-    } else {
-      message.info("No draft questions to post.")
-    }
+    })
+    message.success("Question posted successfully")
+    setActiveTab("posted") // Switch to posted tab after posting
   }
- 
+
+  // Function to add a new row to the table data
+  // const handleAddTableRow = () => {
+  //   const newRow: TableRow = {
+  //     key: `new-${tableData.length}`,
+  //     description: "",
+  //     amount: "",
+  //     accountCode: "",
+  //   }
+  //   setTableData([...tableData, newRow])
+  // }
+
+  // // Function to remove a row from the table data
+  // const handleRemoveTableRow = (key: string) => {
+  //   setTableData(tableData.filter((row) => row.key !== key))
+  // }
+
+  // // Function to update a table row
+  // const handleTableRowChange = (key: string, field: keyof TableRow, value: string) => {
+  //   setTableData(
+  //     tableData.map((row) => {
+  //       if (row.key === key) {
+  //         return { ...row, [field]: value }
+  //       }
+  //       return row
+  //     }),
+  //   )
+  // }
+
+  // // Function to handle file view
+  // const handleFileView = (file: UploadFile) => {
+  //   message.info(`Viewing file: ${file.name}`)
+  //   // In a real application, you would open the file in a new tab or modal
+  //   window.open("#", "_blank")
+  // }
+
+  // // Function to handle file delete
+  // const handleFileDelete = (file: UploadFile) => {
+  //   setFileList(fileList.filter((f) => f.uid !== file.uid))
+  //   message.success(`File ${file.name} removed`)
+  // }
 
   // Render the appropriate input based on question type
   const renderQuestionInput = (type: string, mode: string) => {
@@ -1411,7 +1482,6 @@ const QueryHubNew = () => {
             {/* Search bar */}
             <Input
               placeholder="Search Queries, etc"
-              // prefix={<SearchOutlined style={{ color: "#bfbfbf" }} />}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{ width: "200px" }}
@@ -1497,14 +1567,14 @@ const QueryHubNew = () => {
                 justifyContent: "space-between",
                 alignItems: "center",
                 marginBottom: "16px",
-                borderBottom: "1px solid #f0f0f0",
+                // borderBottom: "1px solid #f0f0f0",
                 paddingBottom: "8px",
               }}
             >
               <Title level={4} style={{ margin: 0 }}>
                 {section?.name}
               </Title>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              {/* <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <Progress
                   percent={section?.progress}
                   style={{ width: "128px" }}
@@ -1521,11 +1591,50 @@ const QueryHubNew = () => {
                 {section?.status === "pending" && (
                   <ExclamationCircleOutlined style={{ fontSize: "20px", color: "#d9d9d9" }} />
                 )}
-              </div>
+              </div> */}
             </div>
 
             {section?.questions.map((question) => (
               <div key={question.id} style={{ marginBottom: "16px" }}>
+                 <div style={{ position: "relative", padding: "8px 0" }}>
+                                     {/* Progress + Icon */}
+                                                <div
+                                                  style={{
+                                                    position: "absolute",
+                                                    top: "-22px",
+                                                    right: "0px",
+                                                    zIndex: 1,
+                                                    padding: "4px 8px",
+                                                    borderRadius: "4px",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    gap: "4px",
+                                                  }}
+                                                >
+                                                  <Progress
+                                                    percent={question.progress}
+                                                    size="small"
+                                                    style={{ width: "128px" }}
+                                                    strokeColor={
+                                                      question.progress === 100
+                                                        ? "#0f766e"
+                                                        : question.progress > 0
+                                                        ? "#faad14"
+                                                        : "#d9d9d9"
+                                                    }
+                                                    showInfo={false}
+                                                  />
+                                    
+                                                  {question.progress === 100 && (
+                                                    <CheckCircleOutlined style={{ fontSize: "16px", color: "#0f766e" }} />
+                                                  )}
+                                                  {question.progress > 0 && question.progress < 100 && (
+                                                    <ClockCircleOutlined style={{ fontSize: "16px", color: "#faad14" }} />
+                                                  )}
+                                                  {question.progress === 0 && (
+                                                    <ExclamationCircleOutlined style={{ fontSize: "16px", color: "#d9d9d9" }} />
+                                                  )}
+                                                </div>
                 <Card
                   style={{
                     borderLeft: selectedDate && question.date === selectedDate ? "4px solid #0f766e" : undefined,
@@ -1584,7 +1693,6 @@ const QueryHubNew = () => {
                               })
                               : "No date"}
                           </div>
-
                           {/* Submission info for posted questions */}
                           {question.status === "posted" && (
                             <>
@@ -1639,35 +1747,7 @@ const QueryHubNew = () => {
                                 background: "#0f766e",
                                 color: user_control.role !== "client" ? "#d9d9d9" : "#fff",
                               }}
-                              onClick={() => {
-                                // Find the section and question to update
-                                const sectionIndex = questionnaireSections.findIndex((s) => s.id === section.id)
-                                if (sectionIndex !== -1) {
-                                  const questionIndex = questionnaireSections[sectionIndex].questions.findIndex(
-                                    (q) => q.id === question.id,
-                                  )
-                                  if (questionIndex !== -1) {
-                                    // Create a deep copy of the questionnaire sections
-                                    const updatedSections = [...questionnaireSections]
-
-                                    // Update the question status to posted
-                                    updatedSections[sectionIndex].questions[questionIndex] = {
-                                      ...updatedSections[sectionIndex].questions[questionIndex],
-                                      status: "posted",
-                                      submittedDate: new Date().toISOString().split("T")[0],
-                                      submittedBy: user.name || "Current User",
-                                    }
-
-                                    // Update the state with the modified sections
-                                    setQuestionnaireSections(updatedSections)
-
-                                    // Update section progress
-                                    setTimeout(() => updateSectionProgress(section.id), 0)
-
-                                    alert("Question posted successfully!")
-                                  }
-                                }
-                              }}
+                              onClick={() => handlePostSingleQuestion(section.id, question.id)}
                             >
                               Post
                             </Button>
@@ -1696,7 +1776,7 @@ const QueryHubNew = () => {
                       </div>
                     </div>
 
-                    <Divider style={{ margin: "12px 0" }} />
+                    <Divider style={{ margin: "12px 0"}} />
 
                     {/* Answer content */}
                     {!question.answered ? (
@@ -1770,6 +1850,7 @@ const QueryHubNew = () => {
                   </div>
                 </Card>
               </div>
+              </div>
             ))}
           </div>
         ))}
@@ -1782,10 +1863,15 @@ const QueryHubNew = () => {
               {draftQuestions + postedQuestions} of {totalQuestions} questions answered ({overallProgress}% complete)
             </Text></div>
           <Space>
-            <Button disabled={user_control.role !== "client"} onClick={handleSaveAllDrafts}>Save All Drafts</Button>
+          <Button
+              disabled={user_control.role !== "client" || activeTab !== "unanswered"}
+              onClick={handleSaveAllDrafts}
+            >
+              Save All Drafts
+            </Button>
             <Button
               className="disabled:opacity-50 disabled:cursor-not-allowed disabled:text-zinc-900"
-              disabled={user_control.role !== "client"}
+              disabled={user_control.role !== "client" || activeTab !== "draft"}
               type="primary"
               style={{ background: "#0f766e" }}
               onClick={handlePostAllDrafts}
@@ -2032,10 +2118,7 @@ const QueryHubNew = () => {
                   Close
                 </Button>
                 <Button
-                  onClick={() => {
-                    alert("Response saved as draft.")
-                    handleCloseModal()
-                  }}
+                  onClick={() => handleSubmit("draft")}
                   style={{
                     borderColor: "#E2E8F0",
                     color: "#4A5568",
@@ -2048,7 +2131,7 @@ const QueryHubNew = () => {
                   Save as Draft
                 </Button>
                 <Button
-                  onClick={handleSubmit}
+                  onClick={() => handleSubmit("post")}
                   style={{
                     backgroundColor: "#0F3A47",
                     color: "white",
@@ -2169,6 +2252,23 @@ const QueryHubNew = () => {
                 {currentQuestion.text}
               </div>
             </div>
+            <div style={{ padding: "0 1rem 0.5rem" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <Text type="secondary" style={{ fontSize: "12px" }}>Current Progress:</Text>
+                            <Progress
+                              percent={currentQuestion.progress}
+                              size="small"
+                              style={{ width: "100px" }}
+                              strokeColor={
+                                currentQuestion.progress === 100
+                                  ? "#0f766e"
+                                  : currentQuestion.progress > 0
+                                    ? "#faad14"
+                                    : "#d9d9d9"
+                              }
+                            />
+                          </div>
+                        </div>
 
             {/* Render appropriate input based on question type */}
             {currentQuestion.type === "yesno" ? (
@@ -2379,7 +2479,23 @@ const QueryHubNew = () => {
                 />
               </div>
             )}
-
+             <div
+                          style={{
+                            padding: "0.75rem 1rem",
+                            borderTop: "1px solid #f0f0f0",
+                            background: "#fffbe6",
+                            display: "flex",
+                            alignItems: "center",
+                          }}
+                        >
+                          <WarningOutlined style={{ color: "#faad14", marginRight: "8px" }} />
+                          <span style={{ color: "#d48806", fontSize: "14px" }}>
+                            {currentQuestion.status === "draft"
+                              ? "This question is in draft mode. You can edit it multiple times before posting."
+                              : "Once you start editing, this question will be saved as a draft."}
+                          </span>
+                        </div>
+            
             {/* Footer */}
             <div
               style={{
