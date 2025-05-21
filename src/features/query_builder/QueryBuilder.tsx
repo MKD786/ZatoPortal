@@ -637,7 +637,7 @@ const QueryBuilder = () => {
             disabled={selectedQuestions.length === 0 || activeMidjobQueryId !== null}
             style={{ backgroundColor: "#52c41a", borderColor: "#52c41a" }}>Send Selected Queries</Button>
         </div>
-        <div className="overflow-auto h-[68vh] w-full">
+        <div className="overflow-auto h-[67vh] w-full">
         {questionsBySection.map((section) => {
           const allMidjobQuestionIds = midjobQueries.flatMap((query) => query.questionIds)
           const filteredQuestions = activeMidjobQueryId

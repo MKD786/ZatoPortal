@@ -429,7 +429,7 @@ const ReminderHistory = () => {
         <Table columns={columns} dataSource={filteredReminderHistory} pagination={{ pageSize: 10 }} loading={loading}
           rowKey="key"
           scroll={{
-            y: 430,
+            y: 420,
             x: "auto",
             scrollToFirstRowOnChange: true,
           }}

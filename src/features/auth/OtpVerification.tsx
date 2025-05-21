@@ -98,7 +98,7 @@ const OTPPage = ({ onVerificationSuccess }: OtpVerificationProps) => {
                     if (onVerificationSuccess) {
                         onVerificationSuccess()
                     } else {
-                        navigate("/questionnaires")
+                        navigate("/client-activities")
                     }
                 }, 1500)
             } else {

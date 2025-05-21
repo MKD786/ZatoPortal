@@ -96,6 +96,7 @@ const authSlice = createSlice({
       // Clear session storage
       sessionStorage.removeItem("token")
       sessionStorage.removeItem("user")
+      localStorage.removeItem("selectedCompany")
 
       // Reset state
       state.user = null

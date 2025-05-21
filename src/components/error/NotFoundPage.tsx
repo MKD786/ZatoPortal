@@ -15,7 +15,7 @@ const NotFoundPage = () => {
   const { theme } = useSelector((state: RootState) => state.theme)
   const { isAuthenticated } = useSelector((state: RootState) => state.auth)
   const handleGoHome = () => {
-    navigate(isAuthenticated ? "/dashboard" : "/login")
+    navigate(isAuthenticated ? "/client-activities" : "/login")
   }
 
   const handleGoBack = () => {
@@ -49,7 +49,7 @@ const NotFoundPage = () => {
             onClick={handleGoHome}
             className="rounded-lg px-8 h-12 text-base min-w-[200px]"
           >
-            {isAuthenticated ? "Back to Dashboard" : "Go to Login"}
+            {isAuthenticated ? "Back to Clients" : "Go to Login"}
           </Button>
 
           <Button
