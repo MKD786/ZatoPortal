@@ -1,40 +1,6 @@
 import { useState, useEffect } from "react"
-import {
-  EditOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  ExclamationCircleOutlined,
-  PaperClipOutlined,
-  InfoCircleOutlined,
-  EyeOutlined,
-  CalendarOutlined,
-  UserOutlined,
-  FilterOutlined,
-  ArrowLeftOutlined,
-  ArrowRightOutlined,
-  DeleteOutlined,
-  WarningOutlined,
-} from "@ant-design/icons"
-import {
-  Button,
-  Input,
-  Progress,
-  Badge,
-  Tooltip,
-  Card,
-  Tabs,
-  Divider,
-  Space,
-  Typography,
-  Tag,
-  Dropdown,
-  Menu,
-  Modal,
-  Upload,
-  Radio,
-  Table,
-  message,
-} from "antd"
+import { EditOutlined, CheckCircleOutlined, ClockCircleOutlined, ExclamationCircleOutlined, PaperClipOutlined, InfoCircleOutlined, EyeOutlined, CalendarOutlined, UserOutlined, FilterOutlined, ArrowLeftOutlined, ArrowRightOutlined, DeleteOutlined } from "@ant-design/icons"
+import { Button, Input, Progress, Badge, Tooltip, Card, Tabs, Divider, Space, Typography, Tag, Dropdown, Menu, Modal, Upload, Radio, Table,message, Collapse } from "antd"
 
 interface FileObject {
   name: string
@@ -103,6 +69,14 @@ interface QueryItem {
   total?: number
   progress: number
 }
+
+// Interface for storing individual question responses
+interface QuestionResponse {
+  yesNoAnswer: string
+  textResponse: string
+  fileList: UploadFile[]
+  tableData: TableRow[]
+}
 const { Text, Title, Paragraph } = Typography
 const { TextArea } = Input
 const QueryHubNew = () => {
@@ -116,15 +90,16 @@ const QueryHubNew = () => {
   const [searchQuery, setSearchQuery] = useState("")
   const [visible, setVisible] = useState(false)
   const [query, setQuery] = useState<QueryItem | null>(null)
-  const [response, setResponse] = useState("")
-  const [yesNoAnswer, setYesNoAnswer] = useState<string>("")
-  const [fileList, setFileList] = useState<UploadFile[]>([])
+    const [response, setResponse] = useState("")
+    const [yesNoAnswer, setYesNoAnswer] = useState<string>("")
+    const [fileList, setFileList] = useState<UploadFile[]>([])
   const [currentQueryIndex, setCurrentQueryIndex] = useState(0)
   const [allQueries, setAllQueries] = useState<QueryItem[]>([])
   const [unansweredQueries, setUnansweredQueries] = useState<QueryItem[]>([])
   const [tableData, setTableData] = useState<TableRow[]>([])
 
-  // Add dates to the questions
+  const [questionResponses, setQuestionResponses] = useState<Record<string, QuestionResponse>>({})
+
   const [questionnaireSections, setQuestionnaireSections] = useState<QuestionnaireSection[]>([
     {
       id: "trading",
@@ -235,7 +210,30 @@ const QueryHubNew = () => {
         },
       ],
     },
-  ]) 
+  ])
+
+  // Initialize responses for each question
+  useEffect(() => {
+    const initialResponses: Record<string, QuestionResponse> = {}
+
+    questionnaireSections.forEach((section) => {
+      section.questions.forEach((question) => {
+        initialResponses[question.id] = {
+          yesNoAnswer: question.answer || "",
+          textResponse: question.textAnswer || "",
+          fileList: question.files.map((file, index) => ({
+            uid: `existing-${index}`,
+            name: file.name,
+            status: "done",
+            url: "#",
+          })),
+          tableData: question.tableData || [],
+        }
+      })
+    })
+
+    setQuestionResponses(initialResponses)
+  }, [])
   const totalQuestions = questionnaireSections.reduce((acc, section) => acc + section.questions.length, 0)
 
   const unansweredQuestions = questionnaireSections.reduce((acc, section) => {
@@ -249,6 +247,60 @@ const QueryHubNew = () => {
   }, 0)
 
   const overallProgress = Math.round(((draftQuestions + postedQuestions) / totalQuestions) * 100)
+
+  // Get or initialize response for a question
+  const getQuestionResponse = (questionId: string) => {
+    if (!questionResponses[questionId]) {
+      const question = findQuestionById(questionId)
+      if (question) {
+        setQuestionResponses((prev) => ({
+          ...prev,
+          [questionId]: {
+            yesNoAnswer: question.answer || "",
+            textResponse: question.textAnswer || "",
+            fileList: question.files.map((file, index) => ({
+              uid: `existing-${index}`,
+              name: file.name,
+              status: "done",
+              url: "#",
+            })),
+            tableData: question.tableData || [],
+          },
+        }))
+      } else {
+        setQuestionResponses((prev) => ({
+          ...prev,
+          [questionId]: {
+            yesNoAnswer: "",
+            textResponse: "",
+            fileList: [],
+            tableData: [],
+          },
+        }))
+      }
+    }
+    return questionResponses[questionId] || { yesNoAnswer: "", textResponse: "", fileList: [], tableData: [] }
+  }
+
+  // Update response for a specific question
+  const updateQuestionResponse = (questionId: string, field: keyof QuestionResponse, value: any) => {
+    setQuestionResponses((prev) => ({
+      ...prev,
+      [questionId]: {
+        ...prev[questionId],
+        [field]: value,
+      },
+    }))
+  }
+
+  // Find a question by ID
+  const findQuestionById = (questionId: string): Question | null => {
+    for (const section of questionnaireSections) {
+      const question = section.questions.find((q) => q.id === questionId)
+      if (question) return question
+    }
+    return null
+  }
 
   const handleOpenQuestion = (sectionId: string, questionId: string, mode: "edit" | "answer" | "view") => {
     const section = questionnaireSections.find((s) => s.id === sectionId)
@@ -291,15 +343,8 @@ const QueryHubNew = () => {
 
         setQuery(queryItem)
         setVisible(true)
-        resetResponseInputs(question.type)
       }
     }
-  }
-  const resetResponseInputs = (_: string) => {
-    setResponse("")
-    setYesNoAnswer("")
-    setFileList([])
-    setTableData([])
   }
   const handlePenIconClick = (sectionId: string, questionId: string) => {
     const section = questionnaireSections.find((s) => s.id === sectionId)
@@ -308,13 +353,12 @@ const QueryHubNew = () => {
     if (question) {
       setCurrentQuestion(question)
       setIsPenModalOpen(true)
-      resetResponseInputs(question.type)
+      getQuestionResponse(question.id)
     }
   }
   const handleClosePenModal = () => {
     setIsPenModalOpen(false)
     setCurrentQuestion(null)
-    resetResponseInputs("")
   }
   const getUniqueDates = () => {
     const dates: string[] = []
@@ -326,7 +370,7 @@ const QueryHubNew = () => {
       })
     })
     return dates.sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
-  } 
+  }
   const uniqueDates = getUniqueDates()
   const handleDateFilter = (date: string | null) => {
     setSelectedDate(date)
@@ -339,11 +383,19 @@ const QueryHubNew = () => {
       section.questions.forEach((question, questionIndex) => {
         if (question.status === "unanswered") {
           pendingQuestionsCount++
+          const response = getQuestionResponse(question.id)
           updatedSections[sectionIndex].questions[questionIndex] = {
             ...question,
             status: "draft",
             answered: true,
-            progress: Math.round((question.progress / 100) * 50),
+            answer: response.yesNoAnswer,
+            textAnswer: response.textResponse,
+            files: response.fileList.map((file) => ({
+              name: file.name,
+              category: "Uploaded File",
+              explanation: "",
+            })),
+            tableData: response.tableData,
             submittedDate: new Date().toISOString().split("T")[0],
             submittedBy: user.name || "Current User",
           }
@@ -353,7 +405,7 @@ const QueryHubNew = () => {
       const answeredSectionQuestions = updatedSections[sectionIndex].questions.filter(
         (q) => q.status === "draft" || q.status === "posted",
       ).length
-      updatedSections[sectionIndex].progress = Math.round((answeredSectionQuestions / totalSectionQuestions) * 100) 
+      updatedSections[sectionIndex].progress = Math.round((answeredSectionQuestions / totalSectionQuestions) * 100)
       if (updatedSections[sectionIndex].progress === 100) {
         updatedSections[sectionIndex].status = "completed"
       } else if (updatedSections[sectionIndex].progress > 0) {
@@ -364,9 +416,11 @@ const QueryHubNew = () => {
     })
     setQuestionnaireSections(updatedSections)
     if (pendingQuestionsCount > 0) {
-      message.success(`${pendingQuestionsCount} pending questions saved as drafts successfully!`)
+      // message.success(`${pendingQuestionsCount} pending questions saved as drafts successfully!`)
+      console.log(`${pendingQuestionsCount} pending questions saved as drafts successfully!`)
     } else {
-      message.info("No pending questions to save as drafts.")
+      // message.info("No pending questions to save as drafts.")
+      console.log("No pending questions to save as drafts.")
     }
   }
 
@@ -380,7 +434,6 @@ const QueryHubNew = () => {
           updatedSections[sectionIndex].questions[questionIndex] = {
             ...question,
             status: "posted",
-            progress: 100, // Set progress to 100% when posting
             submittedDate: new Date().toISOString().split("T")[0],
             submittedBy: user.name || "Current User",
           }
@@ -388,7 +441,7 @@ const QueryHubNew = () => {
       })
       const totalSectionQuestions = section.questions.length
       const answeredSectionQuestions = updatedSections[sectionIndex].questions.filter(
-        (q) => q.status === "posted",
+        (q) => q.status === "draft" || q.status === "posted",
       ).length
       updatedSections[sectionIndex].progress = Math.round((answeredSectionQuestions / totalSectionQuestions) * 100)
       if (updatedSections[sectionIndex].progress === 100) {
@@ -406,7 +459,6 @@ const QueryHubNew = () => {
       message.info("No draft questions to post.")
     }
   }
-
   const filteredSections = questionnaireSections
     .map((section) => {
       const filteredQuestions = section.questions.filter((q) => {
@@ -535,10 +587,10 @@ const QueryHubNew = () => {
           total: allQueries.length,
         })
         setVisible(true)
-        resetResponseInputs(currentQuery.type)
+        getQuestionResponse(currentQuery.id)
       }
     } else {
-      message.info("There are no unanswered queries to respond to.")
+      console.log("There are no unanswered queries to respond to.")
     }
   }
   const handlePreviousQuery = () => {
@@ -551,7 +603,7 @@ const QueryHubNew = () => {
         index: newIndex + 1,
         total: allQueries.length,
       })
-      resetResponseInputs(currentQuery.type)
+      getQuestionResponse(currentQuery.id)
     }
   }
   const handleNextQuery = () => {
@@ -564,21 +616,19 @@ const QueryHubNew = () => {
         index: newIndex + 1,
         total: allQueries.length,
       })
-      resetResponseInputs(currentQuery.type)
+      getQuestionResponse(currentQuery.id)
     }
   }
 
   const handleCloseModal = () => {
     setVisible(false)
     setQuery(null)
-    resetResponseInputs("")
   }
 
   // Function to close the question modal
   const handleCloseQuestionModal = () => {
     setIsModalOpen(false)
     setSelectedQuestion(null)
-    resetResponseInputs("")
   }
 
   // Function to update section progress
@@ -624,6 +674,9 @@ const QueryHubNew = () => {
           const updatedSections = [...questionnaireSections]
           const sectionId = updatedSections[sectionIndex].id
 
+          // Get the response for this specific question
+          const response = getQuestionResponse(query.id)
+
           // Update the question based on its type
           if (query.type === "yesno") {
             updatedSections[sectionIndex].questions[questionIndex] = {
@@ -633,7 +686,7 @@ const QueryHubNew = () => {
               answered: true,
               answer: yesNoAnswer,
               submittedDate: new Date().toLocaleDateString(),
-              submittedBy: user.name || "Current User",
+              submittedBy: user.name || "Current User",      
             }
           } else if (query.type === "file") {
             updatedSections[sectionIndex].questions[questionIndex] = {
@@ -665,7 +718,7 @@ const QueryHubNew = () => {
               status: action === "post" ? "posted" : "draft",
               progress: action === "post" ? 100 : Math.round((query.progress / 100) * 100), // Set progress based on action
               answered: true,
-              textAnswer: response,
+              textAnswer: response.textResponse,
               submittedDate: new Date().toLocaleDateString(),
               submittedBy: user.name || "Current User",
             }
@@ -679,14 +732,16 @@ const QueryHubNew = () => {
         }
       }
 
-      message.success(`Response ${action === "post" ? "posted" : "saved as draft"} successfully!`)
+      // message.success(`Response ${action === "post" ? "posted" : "saved as draft"} successfully!`)
+      console.log(`Response ${action === "post" ? "posted" : "saved as draft"} successfully!`)
 
       // Move to the next query instead of closing the modal
       if (currentQueryIndex < allQueries.length - 1) {
         handleNextQuery()
       } else {
         // If this is the last query, then close the modal
-        message.success("All queries have been answered!")
+        // message.success("All queries have been answered!")
+        console.log("All queries have been answered!")
         handleCloseModal()
       }
     }
@@ -720,7 +775,7 @@ const QueryHubNew = () => {
           } else if (selectedQuestion.type === "file") {
             updatedSections[sectionIndex].questions[questionIndex] = {
               ...updatedSections[sectionIndex].questions[questionIndex],
-              status: newStatus,
+              status: newStatus,              
               progress: newProgress,
               answered: true,
               files: fileList.map((file) => ({
@@ -758,16 +813,18 @@ const QueryHubNew = () => {
       }
 
       if (action === "save") {
-        message.success("Response saved as draft.")
+        // message.success("Response saved as draft.")
+        console.log("Response saved as draft.")
         setActiveTab("draft") // Switch to draft tab after saving
       } else {
-        message.success("Response posted successfully!")
+        // message.success("Response posted successfully!")
+        console.log("Response posted successfully!")
         setActiveTab("posted") // Switch to posted tab after posting
       }
       handleCloseQuestionModal()
     }
-  }
-
+  } 
+  
   // Function to handle pen modal submit
   const handlePenModalSubmit = (action: "save" | "post") => {
     if (currentQuestion) {
@@ -843,17 +900,17 @@ const QueryHubNew = () => {
       }
 
       if (action === "save") {
-        message.success("Response saved as draft.")
+        // message.success("Response saved as draft.")
+        console.log("Response saved as draft.")
         setActiveTab("draft") // Switch to draft tab after saving
       } else {
-        message.success("Response posted successfully!")
+        // message.success("Response posted successfully!")
+        console.log("Response posted successfully!")
         setActiveTab("posted") // Switch to posted tab after posting
       }
       handleClosePenModal()
     }
   }
-
-  // Function to handle post single question
   const handlePostSingleQuestion = (sectionId: string, questionId: string) => {
     setQuestionnaireSections(prevSections => {
       return prevSections.map(section => {
@@ -877,54 +934,16 @@ const QueryHubNew = () => {
         return section
       })
     })
-    message.success("Question posted successfully")
+    // message.success("Question posted successfully")
+    console.log("Question posted successfully")
     setActiveTab("posted") // Switch to posted tab after posting
   }
 
-  // Function to add a new row to the table data
-  const handleAddTableRow = () => {
-    const newRow: TableRow = {
-      key: `new-${tableData.length}`,
-      description: "",
-      amount: "",
-      accountCode: "",
-    }
-    setTableData([...tableData, newRow])
-  }
-
-  // // Function to remove a row from the table data
-  // const handleRemoveTableRow = (key: string) => {
-  //   setTableData(tableData.filter((row) => row.key !== key))
-  // }
-
-  // // Function to update a table row
-  // const handleTableRowChange = (key: string, field: keyof TableRow, value: string) => {
-  //   setTableData(
-  //     tableData.map((row) => {
-  //       if (row.key === key) {
-  //         return { ...row, [field]: value }
-  //       }
-  //       return row
-  //     }),
-  //   )
-  // }
-
-  // // Function to handle file view
-  // const handleFileView = (file: UploadFile) => {
-  //   message.info(`Viewing file: ${file.name}`)
-  //   // In a real application, you would open the file in a new tab or modal
-  //   window.open("#", "_blank")
-  // }
-
-  // // Function to handle file delete
-  // const handleFileDelete = (file: UploadFile) => {
-  //   setFileList(fileList.filter((f) => f.uid !== file.uid))
-  //   message.success(`File ${file.name} removed`)
-  // }
 
   // Render the appropriate input based on question type
-  const renderQuestionInput = (type: string, mode: string) => {
+  const renderQuestionInput = (questionId: string, type: string, mode: string) => {
     const isViewOnly = mode === "view"
+    const response = getQuestionResponse(questionId)
 
     switch (type) {
       case "yesno":
@@ -932,7 +951,11 @@ const QueryHubNew = () => {
           <div style={{ padding: "0 1rem 1rem" }}>
             <Text type="secondary">Answer:</Text>
             <div style={{ marginTop: "0.5rem" }}>
-              <Radio.Group value={yesNoAnswer} onChange={(e) => setYesNoAnswer(e.target.value)} disabled={isViewOnly}>
+              <Radio.Group
+                value={response.yesNoAnswer}
+                onChange={(e) => updateQuestionResponse(questionId, "yesNoAnswer", e.target.value)}
+                disabled={isViewOnly}
+              >
                 <Radio value="Yes">Yes</Radio>
                 <Radio value="No">No</Radio>
               </Radio.Group>
@@ -964,26 +987,29 @@ const QueryHubNew = () => {
                 onChange={(info) => {
                   // Only update fileList with files that have been successfully uploaded or are new
                   const newFileList = info.fileList.filter((file) => !file.status || file.status === "done")
-                  setFileList(newFileList)
+                  updateQuestionResponse(questionId, "fileList", newFileList)
                 }}
                 beforeUpload={() => false}
                 fileList={[]}
                 showUploadList={false}
                 disabled={isViewOnly}
               >
-                <Button size="small" style={{ borderRadius: "4px", fontSize: "12px", height: "24px", padding: "0 8px" }}>
+                <Button
+                  size="small"
+                  style={{ borderRadius: "4px", fontSize: "12px", height: "24px", padding: "0 8px" }}
+                >
                   Browse Files
                 </Button>
               </Upload>
             </div>
 
             {/* File list displayed below the upload area */}
-            {fileList.length > 0 && (
+            {response.fileList.length > 0 && (
               <div style={{ marginTop: "1rem", padding: "0 0.5rem" }}>
                 <Text type="secondary" style={{ display: "block", marginBottom: "0.5rem" }}>
                   Uploaded Files:
                 </Text>
-                {fileList.map((file) => (
+                {response.fileList.map((file) => (
                   <div
                     key={file.uid}
                     style={{
@@ -1012,7 +1038,10 @@ const QueryHubNew = () => {
                           type="text"
                           icon={<DeleteOutlined style={{ color: "#f5222d" }} />}
                           size="small"
-                          onClick={() => setFileList(fileList.filter((f) => f.uid !== file.uid))}
+                          onClick={() => {
+                            const newFileList = response.fileList.filter((f) => f.uid !== file.uid)
+                            updateQuestionResponse(questionId, "fileList", newFileList)
+                          }}
                         />
                       )}
                     </div>
@@ -1029,7 +1058,7 @@ const QueryHubNew = () => {
             <Text type="secondary">Tabular Data:</Text>
             <div style={{ marginTop: "0.5rem" }}>
               <Table
-                dataSource={tableData}
+                dataSource={response.tableData}
                 columns={[
                   {
                     title: "Description",
@@ -1042,9 +1071,9 @@ const QueryHubNew = () => {
                         <Input
                           value={text}
                           onChange={(e) => {
-                            const newData = [...tableData]
+                            const newData = [...response.tableData]
                             newData[index].description = e.target.value
-                            setTableData(newData)
+                            updateQuestionResponse(questionId, "tableData", newData)
                           }}
                         />
                       ),
@@ -1060,9 +1089,9 @@ const QueryHubNew = () => {
                         <Input
                           value={text}
                           onChange={(e) => {
-                            const newData = [...tableData]
+                            const newData = [...response.tableData]
                             newData[index].amount = e.target.value
-                            setTableData(newData)
+                            updateQuestionResponse(questionId, "tableData", newData)
                           }}
                         />
                       ),
@@ -1078,9 +1107,9 @@ const QueryHubNew = () => {
                         <Input
                           value={text}
                           onChange={(e) => {
-                            const newData = [...tableData]
+                            const newData = [...response.tableData]
                             newData[index].accountCode = e.target.value
-                            setTableData(newData)
+                            updateQuestionResponse(questionId, "tableData", newData)
                           }}
                         />
                       ),
@@ -1092,7 +1121,10 @@ const QueryHubNew = () => {
               {!isViewOnly && (
                 <Button
                   type="dashed"
-                  onClick={() => setTableData([...tableData, { description: "", amount: "", accountCode: "" }])}
+                  onClick={() => {
+                    const newData = [...response.tableData, { description: "", amount: "", accountCode: "" }]
+                    updateQuestionResponse(questionId, "tableData", newData)
+                  }}
                   style={{ marginTop: "10px" }}
                 >
                   Add Row
@@ -1110,8 +1142,8 @@ const QueryHubNew = () => {
             <div style={{ marginTop: "0.5rem" }}>
               <TextArea
                 rows={4}
-                value={response}
-                onChange={(e) => setResponse(e.target.value)}
+                value={response.textResponse}
+                onChange={(e) => updateQuestionResponse(questionId, "textResponse", e.target.value)}
                 placeholder="Type your response here..."
                 disabled={isViewOnly}
               />
@@ -1122,7 +1154,9 @@ const QueryHubNew = () => {
   }
 
   // Render the appropriate input for the respond modal
-  const renderRespondModalInput = (type: string) => {
+  const renderRespondModalInput = (questionId: string, type: string) => {
+    const response = getQuestionResponse(questionId)
+
     switch (type) {
       case "yesno":
         return (
@@ -1139,8 +1173,8 @@ const QueryHubNew = () => {
               <span style={{ marginRight: "8px", color: "#718096" }}>✉️</span> Your Response
             </div>
             <Radio.Group
-              value={yesNoAnswer}
-              onChange={(e) => setYesNoAnswer(e.target.value)}
+              value={response.yesNoAnswer}
+              onChange={(e) => updateQuestionResponse(questionId, "yesNoAnswer", e.target.value)}
               style={{ marginTop: "10px" }}
             >
               <Radio value="Yes">Yes</Radio>
@@ -1178,25 +1212,28 @@ const QueryHubNew = () => {
                 onChange={(info) => {
                   // Only update fileList with files that have been successfully uploaded or are new
                   const newFileList = info.fileList.filter((file) => !file.status || file.status === "done")
-                  setFileList(newFileList)
+                  updateQuestionResponse(questionId, "fileList", newFileList)
                 }}
                 beforeUpload={() => false}
                 fileList={[]}
                 showUploadList={false}
               >
-                <Button size="small" style={{ borderRadius: "4px", fontSize: "12px", height: "24px", padding: "0 8px" }}>
+                <Button
+                  size="small"
+                  style={{ borderRadius: "4px", fontSize: "12px", height: "24px", padding: "0 8px" }}
+                >
                   Browse Files
                 </Button>
               </Upload>
             </div>
 
             {/* File list displayed below the upload area - only show after upload */}
-            {fileList.length > 0 && (
+            {response.fileList.length > 0 && (
               <div style={{ marginTop: "1rem" }}>
                 <Text type="secondary" style={{ display: "block", marginBottom: "0.5rem" }}>
                   Uploaded Files:
                 </Text>
-                {fileList.map((file) => (
+                {response.fileList.map((file) => (
                   <div
                     key={file.uid}
                     style={{
@@ -1224,7 +1261,10 @@ const QueryHubNew = () => {
                         type="text"
                         icon={<DeleteOutlined style={{ color: "#f5222d" }} />}
                         size="small"
-                        onClick={() => setFileList(fileList.filter((f) => f.uid !== file.uid))}
+                        onClick={() => {
+                          const newFileList = response.fileList.filter((f) => f.uid !== file.uid)
+                          updateQuestionResponse(questionId, "fileList", newFileList)
+                        }}
                       />
                     </div>
                   </div>
@@ -1249,7 +1289,7 @@ const QueryHubNew = () => {
               <span style={{ marginRight: "8px", color: "#718096" }}>✉️</span> Tabular Data
             </div>
             <Table
-              dataSource={tableData}
+              dataSource={response.tableData}
               columns={[
                 {
                   title: "Description",
@@ -1259,9 +1299,9 @@ const QueryHubNew = () => {
                     <Input
                       value={text}
                       onChange={(e) => {
-                        const newData = [...tableData]
+                        const newData = [...response.tableData]
                         newData[index].description = e.target.value
-                        setTableData(newData)
+                        updateQuestionResponse(questionId, "tableData", newData)
                       }}
                       size="small"
                     />
@@ -1275,9 +1315,9 @@ const QueryHubNew = () => {
                     <Input
                       value={text}
                       onChange={(e) => {
-                        const newData = [...tableData]
+                        const newData = [...response.tableData]
                         newData[index].amount = e.target.value
-                        setTableData(newData)
+                        updateQuestionResponse(questionId, "tableData", newData)
                       }}
                       size="small"
                     />
@@ -1291,9 +1331,9 @@ const QueryHubNew = () => {
                     <Input
                       value={text}
                       onChange={(e) => {
-                        const newData = [...tableData]
+                        const newData = [...response.tableData]
                         newData[index].accountCode = e.target.value
-                        setTableData(newData)
+                        updateQuestionResponse(questionId, "tableData", newData)
                       }}
                       size="small"
                     />
@@ -1305,7 +1345,10 @@ const QueryHubNew = () => {
             />
             <Button
               type="dashed"
-              onClick={() => setTableData([...tableData, { description: "", amount: "", accountCode: "" }])}
+              onClick={() => {
+                const newData = [...response.tableData, { description: "", amount: "", accountCode: "" }]
+                updateQuestionResponse(questionId, "tableData", newData)
+              }}
               style={{ marginTop: "10px" }}
               size="small"
             >
@@ -1332,8 +1375,8 @@ const QueryHubNew = () => {
             <TextArea
               rows={3}
               placeholder="Type your response here..."
-              value={response}
-              onChange={(e) => setResponse(e.target.value)}
+              value={response.textResponse}
+              onChange={(e) => updateQuestionResponse(questionId, "textResponse", e.target.value)}
               style={{
                 width: "100%",
                 borderRadius: "5px",
@@ -1346,42 +1389,504 @@ const QueryHubNew = () => {
         )
     }
   }
+  const renderQuestionCard = (question: Question, section: QuestionnaireSection) => {
+    const response = getQuestionResponse(question.id)
+    return (
+      <div key={question.id} style={{ marginBottom: "16px" }}>
+        <Card
+          style={{
+            borderLeft: selectedDate && question.date === selectedDate ? "4px solid #0f766e" : undefined,
+          }}
+        >
+          <div style={{ padding: "8px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div style={{ flex: 1 }}>
+                <Paragraph>
+                  <Text strong>{question.number}</Text> {question.text}
+                </Paragraph>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "8px" }}>
+                  <Badge
+                    status={
+                      question.status === "posted" ? "success" : question.status === "draft" ? "warning" : "default"
+                    }
+                    text={
+                      question.status === "posted" ? "Posted" : question.status === "draft" ? "Draft" : "Unanswered"
+                    }
+                  />
+                  <Text type="secondary" style={{ fontSize: "12px" }}>
+                    {question.type === "yesno" && "Yes/No Question"}
+                    {question.type === "file" && "File Upload"}
+                    {question.type === "text" && "Text Response"}
+                    {question.type === "table" && "Tabular Data"}
+                  </Text>
+
+                  {/* Date display for all questions */}
+                  <Text type="secondary" style={{ fontSize: "12px" }}>
+                    |
+                  </Text>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      fontSize: "12px",
+                      color: selectedDate && question.date === selectedDate ? "#0f766e" : "rgba(0, 0, 0, 0.45)",
+                      fontWeight: selectedDate && question.date === selectedDate ? "bold" : "normal",
+                    }}
+                  >
+                    <CalendarOutlined style={{ marginRight: "4px", fontSize: "12px" }} />
+                    {question.date
+                      ? new Date(question.date).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })
+                      : "No date"}
+                  </div>
+
+                  {/* Submission info for posted questions */}
+                  {question.status === "posted" && (
+                    <>
+                      <Text type="secondary" style={{ fontSize: "12px" }}>
+                        |
+                      </Text>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          fontSize: "12px",
+                          color: "rgba(0, 0, 0, 0.45)",
+                        }}
+                      >
+                        <UserOutlined style={{ marginRight: "4px", fontSize: "12px" }} />
+                        By: {question.submittedBy}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Action buttons moved to the top right */}
+              <div style={{ display: "flex", gap: "8px", marginLeft: "16px" }}>
+                {question.status === "posted" ? (
+                  <>
+                    <Button icon={<EyeOutlined />} onClick={() => handleOpenQuestion(section.id, question.id, "view")}>
+                      View Only
+                    </Button>
+                    <Button
+                      disabled={user_control.role !== "client"}
+                      type="primary"
+                      icon={<CheckCircleOutlined />}
+                      style={{
+                        background: "#0f766e",
+                        color: user_control.role !== "client" ? "#d9d9d9" : "#fff",
+                      }}
+                      onClick={() => {
+                        // Find the section and question to update
+                        const sectionIndex = questionnaireSections.findIndex((s) => s.id === section.id)
+                        if (sectionIndex !== -1) {
+                          const questionIndex = questionnaireSections[sectionIndex].questions.findIndex(
+                            (q) => q.id === question.id,
+                          )
+                          if (questionIndex !== -1) {
+                            // Create a deep copy of the questionnaire sections
+                            const updatedSections = [...questionnaireSections]
+
+                            // Update the question status to posted
+                            updatedSections[sectionIndex].questions[questionIndex] = {
+                              ...updatedSections[sectionIndex].questions[questionIndex],
+                              status: "posted",
+                              submittedDate: new Date().toISOString().split("T")[0],
+                              submittedBy: user.name || "Current User",
+                            }
+
+                            // Update the state with the modified sections
+                            setQuestionnaireSections(updatedSections)
+
+                            // Update section progress
+                            setTimeout(() => updateSectionProgress(section.id), 0)
+
+                            alert("Question posted successfully!")
+                          }
+                        }
+                      }}
+                    >
+                      Post
+                    </Button>
+                  </>
+                ) : question.status === "draft" ? (
+                  <>
+                    <Button icon={<EditOutlined />} onClick={() => handleOpenQuestion(section.id, question.id, "edit")}>
+                      {user_control.role === "client" ? "Edit Draft" : "View Draft"}
+                    </Button>
+                    <Button
+                      disabled={user_control.role !== "client"}
+                      type="primary"
+                      icon={<CheckCircleOutlined />}
+                      style={{
+                        background: "#0f766e",
+                        color: user_control.role !== "client" ? "#d9d9d9" : "#fff",
+                      }}
+                      onClick={() => {
+                        // Find the section and question to update
+                        const sectionIndex = questionnaireSections.findIndex((s) => s.id === section.id)
+                        if (sectionIndex !== -1) {
+                          const questionIndex = questionnaireSections[sectionIndex].questions.findIndex(
+                            (q) => q.id === question.id,
+                          )
+                          if (questionIndex !== -1) {
+                            // Create a deep copy of the questionnaire sections
+                            const updatedSections = [...questionnaireSections]
+
+                            // Update the question status to posted
+                            updatedSections[sectionIndex].questions[questionIndex] = {
+                              ...updatedSections[sectionIndex].questions[questionIndex],
+                              status: "posted",
+                              submittedDate: new Date().toISOString().split("T")[0],
+                              submittedBy: user.name || "Current User",
+                            }
+
+                            // Update the state with the modified sections
+                            setQuestionnaireSections(updatedSections)
+
+                            // Update section progress
+                            setTimeout(() => updateSectionProgress(section.id), 0)
+
+                            alert("Question posted successfully!")
+                          }
+                        }
+                      }}
+                    >
+                      Post
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      disabled={user_control.role !== "client"}
+                      icon={<EditOutlined />}
+                      onClick={() => handleOpenQuestion(section.id, question.id, "answer")}
+                    >
+                      Answer
+                    </Button>
+                    <Button
+                      disabled={user_control.role !== "client"}
+                      type="primary"
+                      icon={<CheckCircleOutlined />}
+                      style={{
+                        background: "#0f766e",
+                        color: user_control.role !== "client" ? "#d9d9d9" : "#fff",
+                      }}
+                      onClick={() => {
+                        // Find the section and question to update
+                        const sectionIndex = questionnaireSections.findIndex((s) => s.id === section.id)
+                        if (sectionIndex !== -1) {
+                          const questionIndex = questionnaireSections[sectionIndex].questions.findIndex(
+                            (q) => q.id === question.id,
+                          )
+                          if (questionIndex !== -1) {
+                            // Create a deep copy of the questionnaire sections
+                            const updatedSections = [...questionnaireSections]
+
+                            // Update the question status to posted
+                            updatedSections[sectionIndex].questions[questionIndex] = {
+                              ...updatedSections[sectionIndex].questions[questionIndex],
+                              status: "posted",
+                              submittedDate: new Date().toISOString().split("T")[0],
+                              submittedBy: user.name || "Current User",
+                            }
+
+                            // Update the state with the modified sections
+                            setQuestionnaireSections(updatedSections)
+
+                            // Update section progress
+                            setTimeout(() => updateSectionProgress(section.id), 0)
+
+                            alert("Question posted successfully!")
+                          }
+                        }
+                      }}
+                    >
+                      Post
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <Divider style={{ margin: "12px 0" }} />
+
+            {/* Answer content with accordion */}
+            <div style={{ marginTop: "0.5rem" }}>
+  <Collapse defaultActiveKey={[]} expandIconPosition="end">
+    <Collapse.Panel
+      header={<Text strong>Answer:</Text>}
+      key="1"
+    >
+      {/* Yes/No Radio Buttons */}
+      <div style={{ marginBottom: "1rem" }}>
+       
+        <Radio.Group
+          value={response.yesNoAnswer}
+          onChange={(e) => updateQuestionResponse(question.id, "yesNoAnswer", e.target.value)}
+        >
+          <Radio value="Yes">Yes</Radio>
+          <Radio value="No">No</Radio>
+        </Radio.Group>
+      </div>
+
+      <div style={{ display: "flex", gap: "16px", alignItems: "flex-start" }}>
+        {/* Response section */}
+        <div style={{ flex: 1 }}>
+          <Text type="secondary">Your Response:</Text>
+          <div style={{ marginTop: "0.5rem" }}>
+            <TextArea
+              rows={4}
+              value={response.textResponse}
+              onChange={(e) => updateQuestionResponse(question.id, "textResponse", e.target.value)}
+              placeholder="Type your response here..."
+            />
+          </div>
+        </div>
+
+        {/* File attachment section */}
+        <div style={{ flex: 1 }}>
+          <Text type="secondary">File Attachments:</Text>
+          <div
+            style={{
+              border: "1px solid #e8e8e8",
+              borderRadius: "4px",
+              padding: "1rem",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "white",
+              marginTop: "0.5rem",
+            }}
+          >
+            <div style={{ fontSize: "18px", color: "#d9d9d9", marginBottom: "4px" }}>+</div>
+            <div style={{ color: "#666", marginBottom: "8px", fontSize: "13px" }}>
+              Click to browse files
+            </div>
+            <Upload
+              multiple
+              onChange={(info) => {
+                const newFileList = info.fileList.filter((file) => !file.status || file.status === "done")
+                updateQuestionResponse(question.id, "fileList", newFileList)
+              }}
+              beforeUpload={() => false}
+              fileList={[]}
+              showUploadList={false}
+            >
+              <Button
+                size="small"
+                style={{ borderRadius: "4px", fontSize: "12px", height: "24px", padding: "0 8px" }}
+              >
+                Browse Files
+              </Button>
+            </Upload>
+          </div>
+        </div>
+      </div>
+
+      {/* Action buttons */}
+      <div style={{ marginTop: "16px", display: "flex", justifyContent: "flex-end", gap: "8px" }}>
+        <Button
+          onClick={() => {
+            const sectionIndex = questionnaireSections.findIndex((s) => s.id === section.id)
+            if (sectionIndex !== -1) {
+              const questionIndex = questionnaireSections[sectionIndex].questions.findIndex((q) => q.id === question.id)
+              if (questionIndex !== -1) {
+                const updatedSections = [...questionnaireSections]
+                updatedSections[sectionIndex].questions[questionIndex] = {
+                  ...updatedSections[sectionIndex].questions[questionIndex],
+                  status: "draft",
+                  answered: true,
+                  answer: response.yesNoAnswer,
+                  textAnswer: response.textResponse,
+                  files: response.fileList.map((file) => ({
+                    name: file.name,
+                    category: "Uploaded File",
+                    explanation: "",
+                  })),
+                  tableData: response.tableData,
+                  submittedDate: new Date().toISOString().split("T")[0],
+                  submittedBy: user.name || "Current User",
+                }
+                setQuestionnaireSections(updatedSections)
+                setTimeout(() => updateSectionProgress(section.id), 0)
+                message.success("Response saved as draft.")
+              }
+            }
+          }}
+        >
+          Save as Draft
+        </Button>
+        <Button
+          type="primary"
+          style={{ background: "#0f766e" }}
+          onClick={() => {
+            const sectionIndex = questionnaireSections.findIndex((s) => s.id === section.id)
+            if (sectionIndex !== -1) {
+              const questionIndex = questionnaireSections[sectionIndex].questions.findIndex((q) => q.id === question.id)
+              if (questionIndex !== -1) {
+                const updatedSections = [...questionnaireSections]
+                updatedSections[sectionIndex].questions[questionIndex] = {
+                  ...updatedSections[sectionIndex].questions[questionIndex],
+                  status: "posted",
+                  answered: true,
+                  answer: response.yesNoAnswer,
+                  textAnswer: response.textResponse,
+                  files: response.fileList.map((file) => ({
+                    name: file.name,
+                    category: "Uploaded File",
+                    explanation: "",
+                  })),
+                  tableData: response.tableData,
+                  submittedDate: new Date().toISOString().split("T")[0],
+                  submittedBy: user.name || "Current User",
+                }
+                setQuestionnaireSections(updatedSections)
+                setTimeout(() => updateSectionProgress(section.id), 0)
+                message.success("Response posted successfully!")
+              }
+            }
+          }}
+        >
+          Post
+        </Button>
+      </div>
+    </Collapse.Panel>
+  </Collapse>
+</div>
+
+
+            {/* Display uploaded files */}
+            {response.fileList.length > 0 && (
+              <div style={{ marginTop: "1rem" }}>
+                <Text type="secondary" style={{ display: "block", marginBottom: "0.5rem" }}>
+                  Uploaded Files:
+                </Text>
+                {response.fileList.map((file) => (
+                  <div
+                    key={file.uid}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: "0.5rem",
+                      padding: "0.75rem",
+                      backgroundColor: "#f9f9f9",
+                      borderRadius: "4px",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center" }}>
+                      <PaperClipOutlined style={{ marginRight: "8px", color: "#1890ff" }} />
+                      <span style={{ color: "#1890ff" }}>{file.name}</span>
+                    </div>
+                    <div>
+                      <Button
+                        type="text"
+                        icon={<EyeOutlined style={{ color: "#52c41a" }} />}
+                        size="small"
+                        style={{ marginRight: "8px" }}
+                      />
+                      <Button
+                        type="text"
+                        icon={<DeleteOutlined style={{ color: "#f5222d" }} />}
+                        size="small"
+                        onClick={() => {
+                          const newFileList = response.fileList.filter((f) => f.uid !== file.uid)
+                          updateQuestionResponse(question.id, "fileList", newFileList)
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Display existing answers if available */}
+            {question.answered && (
+              <div style={{ fontSize: "14px" }} className="dark:bg-gray-900 dark:text-white">
+                {/* Yes/No Answer */}
+                {question.type === "yesno" && question.answer && (
+                  <div className="dark:bg-gray-900 dark:text-white">
+                    
+                  </div>
+                )}
+
+                {/* Text Answer */}
+                {question.type === "text" && question.textAnswer && (
+                  <div>
+                    <Text strong>Response:</Text> {question.textAnswer}
+                  </div>
+                )}
+
+                {/* Tabular Data */}
+                {question.tableData && question.tableData.length > 0 && (
+                  <div className="dark:bg-gray-900 dark:text-white">
+                    <Text strong>Data:</Text>
+                    <div style={{ marginTop: "4px", padding: "8px", borderRadius: "4px" }}>
+                      <table className="dark:bg-gray-900 dark:text-white" style={{ width: "100%", fontSize: "14px" }}>
+                        <thead>
+                          <tr
+                            className="dark:bg-gray-900 dark:text-white"
+                            style={{ textAlign: "left", fontSize: "12px" }}
+                          >
+                            <th style={{ paddingBottom: "4px" }}>Description</th>
+                            <th style={{ paddingBottom: "4px" }}>Amount</th>
+                            <th style={{ paddingBottom: "4px" }}>Account Code</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {question.tableData.map((row, idx) => (
+                            <tr key={idx} style={{ borderTop: "1px solid #f0f0f0" }}>
+                              <td style={{ padding: "4px 0" }}>{row.description}</td>
+                              <td style={{ padding: "4px 0", fontWeight: 500 }}>{row.amount}</td>
+                              <td className="dark:bg-gray-900 dark:text-white" style={{ padding: "4px 0" }}>
+                                {row.accountCode}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Files */}
+                {question.files && question.files.length > 0 && (
+                  <div style={{ marginTop: question.tableData && question.tableData.length > 0 ? "12px" : "0" }}>
+                    <Text strong>Files:</Text>
+                    <div style={{ marginTop: "4px", display: "flex", flexDirection: "column", gap: "4px" }}>
+                      {question.files.map((file, idx) => (
+                        <div key={idx} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px" }}>
+                          <PaperClipOutlined style={{ fontSize: "12px", color: "#bfbfbf" }} />
+                          <Text style={{ color: "#1890ff" }}>{file.name}</Text>
+                          <Tag style={{ fontSize: "small" }}>{file.category}</Tag>
+                          {file.explanation && (
+                            <Tooltip title={file.explanation}>
+                              <InfoCircleOutlined style={{ fontSize: "12px", color: "#bfbfbf" }} />
+                            </Tooltip>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
+    )
+  }
 
   return (
-    <div className={`flex flex-col min-h-screen dark:bg-gray-900 dark:text-white bg-gray-50 ${user_control?.role === "client" ? "p-4 md:p-6" : ""}`}>
-            {/* Header */}
-            {user_control?.role === "client" && (
-        <div
-        // style={{ background: "rgb(15 91 109)", color: "white", padding: "16px" }}
-        // className="flex justify-between items-center"
-        >
-          {/* <div>
-            <h1 className="text-white text-xl font-bold"></h1>
-            <p style={{ color: "#fff", opacity: 0.8 }}></p>
-          </div> */}
-          {/* <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            <Input placeholder="Search files, etc." style={{ width: "250px" }} />
-            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}> */}
-          {/* <Text strong style={{ color: "white", whiteSpace: "nowrap", fontSize: "16px" }}> */}
-          {/* Mid Job query */}
-          {/* </Text> */}
-          {/* <Dropdown overlay={dateMenu} trigger={["click"]}>
-                <Button
-                  icon={<FilterOutlined />}
-                  style={{
-                    background: selectedDate ? "#0f766e" : undefined,
-                    color: selectedDate ? "white" : undefined,
-                  }}
-                > */}
-          {/* {selectedDate
-                    ? new Date(selectedDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-                    : "May 10"}
-                </Button>
-              </Dropdown> */}
-          {/* </div> */}
-          {/* // </div> */}
-        </div>
-      )}
+    <div
+      className={`flex flex-col min-h-screen dark:bg-gray-900 dark:text-white bg-gray-50 ${user_control?.role === "client" ? "p-4 md:p-6" : ""}`}
+    >
       {/* Sticky Top-Right Filter */}
       <div
         style={{
@@ -1411,9 +1916,9 @@ const QueryHubNew = () => {
           >
             {selectedDate
               ? new Date(selectedDate).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-              })
+                  month: "short",
+                  day: "numeric",
+                })
               : "Filter Date"}
           </Button>
         </Dropdown>
@@ -1590,52 +2095,52 @@ const QueryHubNew = () => {
                 )}
                 {section?.status === "pending" && (
                   <ExclamationCircleOutlined style={{ fontSize: "20px", color: "#d9d9d9" }} />
-                )}
-              </div> */}
+                )} 
+                </div>*/}
+              </div>
+              
+                          {section?.questions.map((question) => (
+                            <div key={question.id} style={{ marginBottom: "16px" }}>
+                               <div style={{ position: "relative", padding: "8px 0" }}>
+                                                   {/* Progress + Icon */}
+                                                              <div
+                                                                style={{
+                                                                  position: "absolute",
+                                                                  top: "-22px",
+                                                                  right: "0px",
+                                                                  zIndex: 1,
+                                                                  padding: "4px 8px",
+                                                                  borderRadius: "4px",
+                                                                  display: "flex",
+                                                                  alignItems: "center",
+                                                                  gap: "4px",
+                                                                }}
+                                                              >
+                                                                <Progress
+                                                                  percent={question.progress}
+                                                                  size="small"
+                                                                  style={{ width: "128px" }}
+                                                                  strokeColor={
+                                                                    question.progress === 100
+                                                                      ? "#0f766e"
+                                                                      : question.progress > 0
+                                                                      ? "#faad14"
+                                                                      : "#d9d9d9"
+                                                                  }
+                                                                  showInfo={false}
+                                                                />
+                                                  
+                                                                {question.progress === 100 && (
+                                                                  <CheckCircleOutlined style={{ fontSize: "16px", color: "#0f766e" }} />
+                                                                )}
+                                                                {question.progress > 0 && question.progress < 100 && (
+                                                                  <ClockCircleOutlined style={{ fontSize: "16px", color: "#faad14" }} />
+                                                                )}
+                                                                {question.progress === 0 && (
+                                                                  <ExclamationCircleOutlined style={{ fontSize: "16px", color: "#d9d9d9" }} />
+                                                                )}
             </div>
-
-            {section?.questions.map((question) => (
-              <div key={question.id} style={{ marginBottom: "16px" }}>
-                          <div style={{ position: "relative", padding: "8px 0" }}>
-                     {/* Progress + Icon */}
-                                <div
-                                  style={{
-                                    position: "absolute",
-                                    top: "-22px",
-                                    right: "0px",
-                                    zIndex: 1,
-                                    padding: "4px 8px",
-                                    borderRadius: "4px",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "4px",
-                                  }}
-                                >
-                                  <Progress
-                                    percent={question.progress}
-                                    size="small"
-                                    style={{ width: "128px" }}
-                                    strokeColor={
-                                      question.progress === 100
-                                        ? "#0f766e"
-                                        : question.progress > 0
-                                        ? "#faad14"
-                                        : "#d9d9d9"
-                                    }
-                                    showInfo={false}
-                                  />
-                    
-                                  {question.progress === 100 && (
-                                    <CheckCircleOutlined style={{ fontSize: "16px", color: "#0f766e" }} />
-                                  )}
-                                  {question.progress > 0 && question.progress < 100 && (
-                                    <ClockCircleOutlined style={{ fontSize: "16px", color: "#faad14" }} />
-                                  )}
-                                  {question.progress === 0 && (
-                                    <ExclamationCircleOutlined style={{ fontSize: "16px", color: "#d9d9d9" }} />
-                                  )}
-                                </div>
-                <Card
+            <Card
                   style={{
                     borderLeft: selectedDate && question.date === selectedDate ? "4px solid #0f766e" : undefined,
                   }}
@@ -1691,183 +2196,185 @@ const QueryHubNew = () => {
                                 month: "short",
                                 day: "numeric",
                               })
-                              : "No date"}
-                          </div>
-                          {/* Submission info for posted questions */}
-                          {question.status === "posted" && (
-                            <>
-                              <Text type="secondary" style={{ fontSize: "12px" }}>
-                                |
-                              </Text>
-                              <div
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  fontSize: "12px",
-                                  color: "rgba(0, 0, 0, 0.45)",
-                                }}
-                              >
-                                <UserOutlined style={{ marginRight: "4px", fontSize: "12px" }} />
-                                By: {question.submittedBy}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Action buttons moved to the top right */}
-                      <div style={{ display: "flex", gap: "8px", marginLeft: "16px" }}>
-                        {question.status === "posted" ? (
-                          <>
-                            <Button
-                              icon={<EyeOutlined />}
-                              onClick={() => handleOpenQuestion(section.id, question.id, "view")}
-                            >
-                              View Only
-                            </Button>
-                            <Button
-                              icon={<EditOutlined />}
-                              style={{ border: "none", padding: "0 8px" }}
-                              onClick={() => handlePenIconClick(section.id, question.id)}
-                            />
-                          </>
-                        ) : question.status === "draft" ? (
-                          <>
-                            <Button
-                              icon={<EditOutlined />}
-                              onClick={() => handleOpenQuestion(section.id, question.id, "edit")}
-                            >
-                              {user_control.role === "client" ? "Edit Draft" : "View Draft"}
-                            </Button>
-                            <Button
-                              disabled={user_control.role !== "client"}
-                              type="primary"
-                              icon={<CheckCircleOutlined />}
-                              style={{
-                                background: "#0f766e",
-                                color: user_control.role !== "client" ? "#d9d9d9" : "#fff",
-                              }}
-                              onClick={() => handlePostSingleQuestion(section.id, question.id)}
-                            >
-                              Post
-                            </Button>
-                            <Button
-                              icon={<EditOutlined />}
-                              style={{ border: "none", padding: "0 8px" }}
-                              onClick={() => handlePenIconClick(section.id, question.id)}
-                            />
-                          </>
-                        ) : (
-                          <>
-                            <Button
-                              disabled={user_control.role !== "client"}
-                              icon={<EditOutlined />}
-                              onClick={() => handleOpenQuestion(section.id, question.id, "answer")}
-                            >
-                              Answer
-                            </Button>
-                            <Button
-                              icon={<EditOutlined />}
-                              style={{ border: "none", padding: "0 8px" }}
-                              onClick={() => handlePenIconClick(section.id, question.id)}
-                            />
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    <Divider style={{ margin: "12px 0"}} />
-
-                    {/* Answer content */}
-                    {!question.answered ? (
-                      <Text type="secondary" italic>No response provided yet</Text>
-                    ) : (
-                      <div style={{ fontSize: "14px" }} className="dark:bg-gray-900 dark:text-white">
-                        {/* Yes/No Answer */}
-                        {question.type === "yesno" && question.answer && (
-                          <div className="dark:bg-gray-900 dark:text-white"><Text strong>Answer:</Text> {question.answer}</div>
-                        )}
-                        {/* Text Answer */}
-                        {question.type === "text" && question.textAnswer && (
-                          <div><Text strong>Response:</Text> {question.textAnswer}</div>
-                        )}
-                        {/* Tabular Data */}
-                        {question.tableData && question.tableData.length > 0 && (
-                          <div className="dark:bg-gray-900 dark:text-white">
-                            <Text strong>Data:</Text>
-                            <div style={{ marginTop: "4px", padding: "8px", borderRadius: "4px" }}>
-                              <table className="dark:bg-gray-900 dark:text-white" style={{ width: "100%", fontSize: "14px" }}>
-                                <thead>
-                                  <tr className="dark:bg-gray-900 dark:text-white" style={{ textAlign: "left", fontSize: "12px" }}>
-                                    <th style={{ paddingBottom: "4px" }}>Description</th>
-                                    <th style={{ paddingBottom: "4px" }}>Amount</th>
-                                    <th style={{ paddingBottom: "4px" }}>Account Code</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {question.tableData.map((row, idx) => (
-                                    <tr key={idx} style={{ borderTop: "1px solid #f0f0f0" }}>
-                                      <td style={{ padding: "4px 0" }}>{row.description}</td>
-                                      <td style={{ padding: "4px 0", fontWeight: 500 }}>{row.amount}</td>
-                                      <td className="dark:bg-gray-900 dark:text-white" style={{ padding: "4px 0" }}>
-                                        {row.accountCode}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
+                              : "No date"}      
                             </div>
-                          </div>
-                        )}
-
-                        {/* Files */}
-                        {question.files && question.files.length > 0 && (
-                          <div
-                            style={{ marginTop: question.tableData && question.tableData.length > 0 ? "12px" : "0" }}
-                          >
-                            <Text strong>Files:</Text>
-                            <div style={{ marginTop: "4px", display: "flex", flexDirection: "column", gap: "4px" }}>
-                              {question.files.map((file, idx) => (
-                                <div
-                                  key={idx}
-                                  style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px" }}
-                                >
-                                  <PaperClipOutlined style={{ fontSize: "12px", color: "#bfbfbf" }} />
-                                  <Text style={{ color: "#1890ff" }}>{file.name}</Text>
-                                  <Tag style={{ fontSize: "small" }}>{file.category}</Tag>
-                                  {file.explanation && (
-                                    <Tooltip title={file.explanation}>
-                                      <InfoCircleOutlined style={{ fontSize: "12px", color: "#bfbfbf" }} />
-                                    </Tooltip>
+           {/* Submission info for posted questions */}
+                                    {question.status === "posted" && (
+                                      <>
+                                        <Text type="secondary" style={{ fontSize: "12px" }}>
+                                          |
+                                        </Text>
+                                        <div
+                                          style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            fontSize: "12px",
+                                            color: "rgba(0, 0, 0, 0.45)",
+                                          }}
+                                        >
+                                          <UserOutlined style={{ marginRight: "4px", fontSize: "12px" }} />
+                                          By: {question.submittedBy}
+                                        </div>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+          
+                                {/* Action buttons moved to the top right */}
+                                <div style={{ display: "flex", gap: "8px", marginLeft: "16px" }}>
+                                  {question.status === "posted" ? (
+                                    <>
+                                      <Button
+                                        icon={<EyeOutlined />}
+                                        onClick={() => handleOpenQuestion(section.id, question.id, "view")}
+                                      >
+                                        View Only
+                                      </Button>
+                                      <Button
+                                        icon={<EditOutlined />}
+                                        style={{ border: "none", padding: "0 8px" }}
+                                        onClick={() => handlePenIconClick(section.id, question.id)}
+                                      />
+                                    </>
+                                  ) : question.status === "draft" ? (
+                                    <>
+                                      <Button
+                                        icon={<EditOutlined />}
+                                        onClick={() => handleOpenQuestion(section.id, question.id, "edit")}
+                                      >
+                                        {user_control.role === "client" ? "Edit Draft" : "View Draft"}
+                                      </Button>
+                                      <Button
+                                        disabled={user_control.role !== "client"}
+                                        type="primary"
+                                        icon={<CheckCircleOutlined />}
+                                        style={{
+                                          background: "#0f766e",
+                                          color: user_control.role !== "client" ? "#d9d9d9" : "#fff",
+                                        }}
+                                        onClick={() => handlePostSingleQuestion(section.id, question.id)}
+                                      >
+                                        Post
+                                      </Button>
+                                      <Button
+                                        icon={<EditOutlined />}
+                                        style={{ border: "none", padding: "0 8px" }}
+                                        onClick={() => handlePenIconClick(section.id, question.id)}
+                                      />
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Button
+                                        disabled={user_control.role !== "client"}
+                                        icon={<EditOutlined />}
+                                        onClick={() => handleOpenQuestion(section.id, question.id, "answer")}
+                                      >
+                                        Answer
+                                      </Button>
+                                      <Button
+                                        icon={<EditOutlined />}
+                                        style={{ border: "none", padding: "0 8px" }}
+                                        onClick={() => handlePenIconClick(section.id, question.id)}
+                                      />
+                                    </>
                                   )}
                                 </div>
-                              ))}
+                              </div>
+          
+                              <Divider style={{ margin: "12px 0"}} />
+          
+                              {/* Answer content */}
+                              {!question.answered ? (
+                                <Text type="secondary" italic>No response provided yet</Text>
+                              ) : (
+                                <div style={{ fontSize: "14px" }} className="dark:bg-gray-900 dark:text-white">
+                                  {/* Yes/No Answer */}
+                                  {question.type === "yesno" && question.answer && (
+                                    <div className="dark:bg-gray-900 dark:text-white"><Text strong>Answer:</Text> {question.answer}</div>
+                                  )}
+                                  {/* Text Answer */}
+                                  {question.type === "text" && question.textAnswer && (
+                                    <div><Text strong>Response:</Text> {question.textAnswer}</div>
+                                  )}
+                                  {/* Tabular Data */}
+                                  {question.tableData && question.tableData.length > 0 && (
+                                    <div className="dark:bg-gray-900 dark:text-white">
+                                      <Text strong>Data:</Text>
+                                      <div style={{ marginTop: "4px", padding: "8px", borderRadius: "4px" }}>
+                                        <table className="dark:bg-gray-900 dark:text-white" style={{ width: "100%", fontSize: "14px" }}>
+                                          <thead>
+                                            <tr className="dark:bg-gray-900 dark:text-white" style={{ textAlign: "left", fontSize: "12px" }}>
+                                              <th style={{ paddingBottom: "4px" }}>Description</th>
+                                              <th style={{ paddingBottom: "4px" }}>Amount</th>
+                                              <th style={{ paddingBottom: "4px" }}>Account Code</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {question.tableData.map((row, idx) => (
+                                              <tr key={idx} style={{ borderTop: "1px solid #f0f0f0" }}>
+                                                <td style={{ padding: "4px 0" }}>{row.description}</td>
+                                                <td style={{ padding: "4px 0", fontWeight: 500 }}>{row.amount}</td>
+                                                <td className="dark:bg-gray-900 dark:text-white" style={{ padding: "4px 0" }}>
+                                                  {row.accountCode}
+                                                </td>
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    </div>
+                                  )}
+          
+                                  {/* Files */}
+                                  {question.files && question.files.length > 0 && (
+                                    <div
+                                      style={{ marginTop: question.tableData && question.tableData.length > 0 ? "12px" : "0" }}
+                                    >
+                                      <Text strong>Files:</Text>
+                                      <div style={{ marginTop: "4px", display: "flex", flexDirection: "column", gap: "4px" }}>
+                                        {question.files.map((file, idx) => (
+                                          <div
+                                            key={idx}
+                                            style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px" }}
+                                          >
+                                            <PaperClipOutlined style={{ fontSize: "12px", color: "#bfbfbf" }} />
+                                            <Text style={{ color: "#1890ff" }}>{file.name}</Text>
+                                            <Tag style={{ fontSize: "small" }}>{file.category}</Tag>
+                                            {file.explanation && (
+                                              <Tooltip title={file.explanation}>
+                                                <InfoCircleOutlined style={{ fontSize: "12px", color: "#bfbfbf" }} />
+                                              </Tooltip>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </Card>
-                </div>
-              </div>
-            ))}
-          </div>
+                          </Card>
+                        </div>
+                        </div>
+                      ))}
+                    </div>
         ))}
       </div>
 
       {/* Footer */}
       <div className="p-4 bg-white border-t border-gray-200">
         <div className="flex justify-between items-center w-full">
-          <div><Text type="secondary">
+          <div>
+            <Text type="secondary">
               {draftQuestions + postedQuestions} of {totalQuestions} questions answered ({overallProgress}% complete)
-            </Text></div>
+            </Text>
+          </div>
           <Space>
-            <Button
+          <Button
               disabled={user_control.role !== "client" || activeTab !== "unanswered"}
               onClick={handleSaveAllDrafts}
-            >
-              Save All Drafts
+            >             
+             Save All Drafts
             </Button>
             <Button
               className="disabled:opacity-50 disabled:cursor-not-allowed disabled:text-zinc-900"
@@ -1881,118 +2388,6 @@ const QueryHubNew = () => {
           </Space>
         </div>
       </div>
-
-      {/* Edit Draft / Answer / View Only Modal */}
-      <Modal
-        title={null}
-        open={isModalOpen}
-        onCancel={handleCloseQuestionModal}
-        footer={null}
-        width={640}
-        closable={false}
-        className="question-modal"
-        bodyStyle={{ padding: 0 }}
-      >
-        {selectedQuestion && (
-          <div style={{ overflow: "hidden" }}>
-            {/* Custom header */}
-            <div
-              style={{
-                backgroundColor: "#0F5B6D",
-                color: "white",
-                padding: "0.75rem 1rem",
-                position: "relative",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <h2 style={{ color: "white", fontSize: "1.25rem", fontWeight: 500, margin: 0 }}>
-                {modalMode === "edit" ? "Edit Draft" : modalMode === "answer" ? "Answer Question" : "View Question"}
-              </h2>
-            </div>
-
-            {/* Content area */}
-            <div>
-              {/* Section and Question Number */}
-              <div
-                style={{
-                  backgroundColor: "#f5f5f5",
-                  padding: "0.75rem 1rem",
-                  display: "flex",
-                  justifyContent: "space-between",
-                }}
-              >
-                <div>
-                  <Text type="secondary">Section:</Text>
-                  <div>{selectedQuestion.sectionName}</div>
-                </div>
-                <div>
-                  <Text type="secondary">Question Number:</Text>
-                  <div>{selectedQuestion.number}</div>
-                </div>
-              </div>
-
-              {/* Question */}
-              <div style={{ padding: "1rem" }}>
-                <Text type="secondary">Question:</Text>
-                <div
-                  style={{
-                    padding: "1rem",
-                    border: "1px solid #e8e8e8",
-                    borderRadius: "4px",
-                    marginTop: "0.5rem",
-                  }}
-                >
-                  {selectedQuestion.text}
-                </div>
-              </div>
-
-              {/* Render appropriate input based on question type */}
-              {renderQuestionInput(selectedQuestion.type, modalMode)}
-
-              {/* Status message */}
-              {(modalMode === "edit" || modalMode === "answer") && (
-                <div style={{ padding: "0 1rem 1rem", display: "flex", alignItems: "center" }}>
-                  <InfoCircleOutlined style={{ color: "#faad14", marginRight: "0.5rem" }} />
-                  <span style={{ color: "#faad14", fontSize: "0.875rem" }}>
-                    {modalMode === "edit"
-                      ? "This question is in draft mode. You can edit it multiple times before posting."
-                      : "Once you start editing, this question will be saved as a draft."}
-                  </span>
-                </div>
-              )}
-
-              {/* Footer buttons */}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  gap: "8px",
-                  borderTop: "1px solid #e8e8e8",
-                  padding: "0.75rem 1rem",
-                  background: "#fafafa",
-                }}
-              >
-                <Button onClick={handleCloseQuestionModal}>Cancel</Button>
-                {modalMode !== "view" && (
-                  <>
-                    <Button onClick={() => handleQuestionSubmit("save")}>Save as Draft</Button>
-                    <Button
-                      type="primary"
-                      style={{ backgroundColor: "#0F5B6D", borderColor: "#0F5B6D" }}
-                      onClick={() => handleQuestionSubmit("post")}
-                    >
-                      Post
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </Modal>
-
       {/* Respond to Queries Modal */}
       <Modal
         title={null}
@@ -2091,7 +2486,7 @@ const QueryHubNew = () => {
               </div>
 
               {/* Render appropriate input based on question type */}
-              {renderRespondModalInput(query.type)}
+              {renderRespondModalInput(query.id, query.type)}
 
               {/* Footer buttons */}
               <div
@@ -2118,7 +2513,40 @@ const QueryHubNew = () => {
                   Close
                 </Button>
                 <Button
-                  onClick={() => handleSubmit("draft")}
+                  onClick={() => {
+                    // Save as draft
+                    const sectionIndex = questionnaireSections.findIndex((s) =>
+                      s.questions.some((q) => q.id === query.id),
+                    )
+                    if (sectionIndex !== -1) {
+                      const questionIndex = questionnaireSections[sectionIndex].questions.findIndex(
+                        (q) => q.id === query.id,
+                      )
+                      if (questionIndex !== -1) {
+                        const response = getQuestionResponse(query.id)
+                        const updatedSections = [...questionnaireSections]
+                        updatedSections[sectionIndex].questions[questionIndex] = {
+                          ...updatedSections[sectionIndex].questions[questionIndex],
+                          status: "draft",
+                          answered: true,
+                          answer: response.yesNoAnswer,
+                          textAnswer: response.textResponse,
+                          files: response.fileList.map((file) => ({
+                            name: file.name,
+                            category: "Uploaded File",
+                            explanation: "",
+                          })),
+                          tableData: response.tableData,
+                          submittedDate: new Date().toISOString().split("T")[0],
+                          submittedBy: user.name || "Current User",
+                        }
+                        setQuestionnaireSections(updatedSections)
+                        setTimeout(() => updateSectionProgress(updatedSections[sectionIndex].id), 0)
+                      }
+                    }
+                    alert("Response saved as draft.")
+                    handleCloseModal()
+                    handleSubmit("draft")}}
                   style={{
                     borderColor: "#E2E8F0",
                     color: "#4A5568",
@@ -2147,394 +2575,6 @@ const QueryHubNew = () => {
                   <span style={{ marginRight: "5px" }}>✉️</span> Post
                 </Button>
               </div>
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      {/* Pen Icon Modal */}
-      <Modal
-        title={null}
-        open={isPenModalOpen}
-        onCancel={handleClosePenModal}
-        footer={null}
-        width={500}
-        closable={false}
-        className="pen-modal"
-        bodyStyle={{ padding: 0 }}
-      >
-        {currentQuestion && (
-          <div style={{ borderRadius: "8px", overflow: "hidden" }}>
-            {/* Header */}
-            <div
-              style={{
-                backgroundColor: "#0F3A47",
-                color: "white",
-                padding: "0.75rem 1rem",
-                position: "relative",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <h2 style={{ color: "white", fontSize: "1.25rem", fontWeight: 500, margin: 0 }}>Respond to Query</h2>
-            </div>
-
-            {/* Navigation */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: "0.5rem 1rem",
-                backgroundColor: "#EBF8FF",
-                borderBottom: "1px solid #E2E8F0",
-              }}
-            >
-              <div style={{ color: "#4A5568", fontSize: "14px" }}>Query 1 of 1</div>
-
-              <div style={{ display: "flex", gap: "10px" }}>
-                <Button
-                  icon={<ArrowLeftOutlined />}
-                  disabled={true}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    color: "#4A5568",
-                    borderColor: "#E2E8F0",
-                    borderRadius: "4px",
-                    padding: "4px 12px",
-                    height: "auto",
-                  }}
-                >
-                  <span style={{ marginLeft: "5px" }}>Previous</span>
-                </Button>
-                <Button
-                  disabled={true}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    color: "#4A5568",
-                    borderColor: "#E2E8F0",
-                    borderRadius: "4px",
-                    padding: "4px 12px",
-                    height: "auto",
-                  }}
-                >
-                  <span style={{ marginRight: "5px" }}>Next</span>
-                  <ArrowRightOutlined />
-                </Button>
-              </div>
-            </div>
-
-            {/* Query */}
-            <div style={{ padding: "1rem 1rem 0.5rem" }}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  marginBottom: "5px",
-                  color: "#2D3748",
-                  fontWeight: 500,
-                }}
-              >
-                <span style={{ marginRight: "8px", color: "#718096" }}>💬</span>
-                Query
-              </div>
-              <div
-                style={{
-                  backgroundColor: "#EBF8FF",
-                  padding: "0.5rem 1rem",
-                  borderRadius: "5px",
-                  color: "#2D3748",
-                }}
-              >
-                {currentQuestion.text}
-              </div>
-            </div>
-            <div style={{ padding: "0 1rem 0.5rem" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <Text type="secondary" style={{ fontSize: "12px" }}>Current Progress:</Text>
-                <Progress
-                  percent={currentQuestion.progress}
-                  size="small"
-                  style={{ width: "100px" }}
-                  strokeColor={
-                    currentQuestion.progress === 100
-                      ? "#0f766e"
-                      : currentQuestion.progress > 0
-                        ? "#faad14"
-                        : "#d9d9d9"
-                  }
-                />
-              </div>
-            </div>
-
-            {/* Render appropriate input based on question type */}
-            {currentQuestion.type === "yesno" ? (
-              <div style={{ padding: "0 1rem 0.5rem" }}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    marginBottom: "5px",
-                    color: "#2D3748",
-                    fontWeight: 500,
-                  }}
-                >
-                  <span style={{ marginRight: "8px", color: "#718096" }}>✉️</span> Your Response
-                </div>
-                <Radio.Group
-                  value={yesNoAnswer}
-                  onChange={(e) => setYesNoAnswer(e.target.value)}
-                  style={{ marginTop: "10px" }}
-                >
-                  <Radio value="Yes">Yes</Radio>
-                  <Radio value="No">No</Radio>
-                </Radio.Group>
-              </div>
-            ) : currentQuestion.type === "file" ? (
-              <div style={{ padding: "0 1rem 0.5rem" }}>
-                <div style={{ display: "flex", alignItems: "center", marginBottom: "5px" }}>
-                  <div style={{ display: "flex", alignItems: "center", color: "#2D3748", fontWeight: 500 }}>
-                    <span style={{ marginRight: "8px", color: "#718096" }}>📎</span>Attach Files
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    border: "1px solid #e8e8e8",
-                    borderRadius: "4px",
-                    padding: "1rem",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    background: "white",
-                  }}
-                >
-                  <div style={{ fontSize: "18px", color: "#d9d9d9", marginBottom: "4px" }}>+</div>
-                  <div style={{ color: "#666", marginBottom: "8px", fontSize: "13px" }}>Click to browse files</div>
-                  <Upload
-                    multiple
-                    onChange={(info) => {
-                      // Only update fileList with files that have been successfully uploaded or are new
-                      const newFileList = info.fileList.filter((file) => !file.status || file.status === "done")
-                      setFileList(newFileList)
-                    }}
-                    beforeUpload={() => false}
-                    fileList={[]}
-                    showUploadList={false}
-                  >
-                    <Button size="small" style={{ borderRadius: "4px", fontSize: "12px", height: "24px", padding: "0 8px" }}>
-                      Browse Files
-                    </Button>
-                  </Upload>
-                </div>
-
-                {/* File list displayed below the upload area - only show after upload */}
-                {fileList.length > 0 && (
-                  <div style={{ marginTop: "1rem" }}>
-                    <Text type="secondary" style={{ display: "block", marginBottom: "0.5rem" }}>
-                      Uploaded Files:
-                    </Text>
-                    {fileList.map((file) => (
-                      <div
-                        key={file.uid}
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          marginBottom: "0.5rem",
-                          padding: "0.75rem",
-                          backgroundColor: "#f9f9f9",
-                          borderRadius: "4px",
-                        }}
-                      >
-                        <div style={{ display: "flex", alignItems: "center" }}>
-                          <PaperClipOutlined style={{ marginRight: "8px", color: "#1890ff" }} />
-                          <span style={{ color: "#1890ff" }}>{file.name}</span>
-                        </div>
-                        <div>
-                          <Button
-                            type="text"
-                            icon={<EyeOutlined style={{ color: "#52c41a" }} />}
-                            size="small"
-                            style={{ marginRight: "8px" }}
-                          />
-                          <Button
-                            type="text"
-                            icon={<DeleteOutlined style={{ color: "#f5222d" }} />}
-                            size="small"
-                            onClick={() => setFileList(fileList.filter((f) => f.uid !== file.uid))}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ) : currentQuestion.type === "table" ? (
-              <div style={{ padding: "0 1rem 0.5rem" }}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    marginBottom: "5px",
-                    color: "#2D3748",
-                    fontWeight: 500,
-                  }}
-                >
-                  <span style={{ marginRight: "8px", color: "#718096" }}>✉️</span> Tabular Data
-                </div>
-                <Table
-                  dataSource={tableData}
-                  columns={[
-                    {
-                      title: "Description",
-                      dataIndex: "description",
-                      key: "description",
-                      render: (text, _, index) => (
-                        <Input
-                          value={text}
-                          onChange={(e) => {
-                            const newData = [...tableData]
-                            newData[index].description = e.target.value
-                            setTableData(newData)
-                          }}
-                          size="small"
-                        />
-                      ),
-                    },
-                    {
-                      title: "Amount",
-                      dataIndex: "amount",
-                      key: "amount",
-                      render: (text, _, index) => (
-                        <Input
-                          value={text}
-                          onChange={(e) => {
-                            const newData = [...tableData]
-                            newData[index].amount = e.target.value
-                            setTableData(newData)
-                          }}
-                          size="small"
-                        />
-                      ),
-                    },
-                    {
-                      title: "Account Code",
-                      dataIndex: "accountCode",
-                      key: "accountCode",
-                      render: (text, _, index) => (
-                        <Input
-                          value={text}
-                          onChange={(e) => {
-                            const newData = [...tableData]
-                            newData[index].accountCode = e.target.value
-                            setTableData(newData)
-                          }}
-                          size="small"
-                        />
-                      ),
-                    },
-                  ]}
-                  pagination={false}
-                  size="small"
-                />
-                <Button
-                  type="dashed"
-                  onClick={() => setTableData([...tableData, { description: "", amount: "", accountCode: "" }])}
-                  style={{ marginTop: "10px" }}
-                  size="small"
-                >
-                  Add Row
-                </Button>
-              </div>
-            ) : (
-              <div style={{ padding: "0 1rem 0.5rem" }}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    marginBottom: "5px",
-                    color: "#2D3748",
-                    fontWeight: 500,
-                  }}
-                >
-                  <span style={{ marginRight: "8px", color: "#718096" }}>✉️</span> Your Response
-                </div>
-                <TextArea
-                  rows={3}
-                  placeholder="Type your response here..."
-                  value={response}
-                  onChange={(e) => setResponse(e.target.value)}
-                  style={{
-                    width: "100%",
-                    borderRadius: "5px",
-                    border: "1px solid #E2E8F0",
-                    padding: "8px",
-                    fontSize: "14px",
-                  }}
-                />
-              </div>
-            )}
-            <div
-              style={{
-                padding: "0.75rem 1rem",
-                borderTop: "1px solid #f0f0f0",
-                background: "#fffbe6",
-                display: "flex",
-                alignItems: "center",
-              }}
-            >
-              <WarningOutlined style={{ color: "#faad14", marginRight: "8px" }} />
-              <span style={{ color: "#d48806", fontSize: "14px" }}>
-                {currentQuestion.status === "draft"
-                  ? "This question is in draft mode. You can edit it multiple times before posting."
-                  : "Once you start editing, this question will be saved as a draft."}
-              </span>
-            </div>
-
-            {/* Footer */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: "8px",
-                borderTop: "1px solid #E2E8F0",
-                padding: "0.75rem 1rem",
-                background: "#FAFAFA",
-              }}
-            >
-              <Button
-                onClick={handleClosePenModal}
-                style={{
-                  borderColor: "#E2E8F0",
-                  color: "#4A5568",
-                }}
-              >
-                Close
-              </Button>
-              <Button
-                onClick={() => handlePenModalSubmit("save")}
-                style={{
-                  borderColor: "#E2E8F0",
-                  color: "#4A5568",
-                }}
-              >
-                Save as Draft
-              </Button>
-              <Button
-                onClick={() => handlePenModalSubmit("post")}
-                style={{
-                  backgroundColor: "#0F3A47",
-                  color: "white",
-                  borderColor: "#0F3A47",
-                }}
-              >
-                Post
-              </Button>
             </div>
           </div>
         )}

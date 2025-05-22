@@ -15,6 +15,7 @@ import ClientView from "@/features/client_overview/ClientView"
 import ViewClients from "@/features/clients/ViewClients"
 import SettingsModal from "@/features/settings/SettingsModal"
 import Settings from "../../features/settings/Settings"
+import { Building2, UserCog } from "lucide-react"
 
 const { Header, Content } = Layout
 
@@ -85,10 +86,15 @@ const MainLayout = () => {
       onClick: () => navigate("/profile"),
     },
     {
-      key: "Company",
-      label: "Company",
-      icon: <UserOutlined />,
+      key: "entity",
+      label: "Select Entity",
+      icon: <Building2 className="w-3.5 h-3.5" />,
       onClick: showSettingsModalTwo,
+    }, {
+      key: "role-management",
+      label: "Role Management",
+      icon: <UserCog className="w-3.5 h-3.5" />,
+      onClick: () => navigate("/role-management"),
     },
     {
       key: "settings",
@@ -101,13 +107,7 @@ const MainLayout = () => {
       label: "Logout",
       icon: <LogoutOutlined />,
       onClick: handleLogout,
-    },
-    {
-      key: "role-management",
-      label: "Role Management",
-      icon: <UserOutlined />,
-      onClick: () => navigate("/role-management"),
-    },
+    }   
   ]
 
   const user_control = JSON.parse(sessionStorage.getItem("user") || "{}")
@@ -130,13 +130,7 @@ const MainLayout = () => {
         ) : (
           <div className="flex items-center">
             <div className="dark:bg-gray-800 w-14 rounded-md">
-              <img
-                src={ClientLogoDark || "/placeholder.svg"}
-                alt="Client Logo"
-                width="100%"
-                height="100%"
-                className="rounded-full"
-              />
+              <img src={ClientLogoDark || "/placeholder.svg"} alt="Client Logo" width="100%" height="100%" className="rounded-full"/>
             </div>
           </div>
         )}
@@ -172,7 +166,6 @@ const MainLayout = () => {
           ) : (
             <>
               <ViewClients />
-              <Settings visible={settingsModalVisibleTwo} onCancel={hideSettingsModalTwo} onSave={handleCompanySelect} defaultCompany={selectedCompany} />
             </>
           )}
         </>
@@ -181,6 +174,7 @@ const MainLayout = () => {
       )}
       <LogoutModal visible={logoutModalVisible} onCancel={hideLogoutModal} />
       <SettingsModal visible={settingsModalVisible} onCancel={hideSettingsModal} />
+      <Settings visible={settingsModalVisibleTwo} onCancel={hideSettingsModalTwo} onSave={handleCompanySelect} defaultCompany={selectedCompany} />
       <Footer className="fixed bottom-0 right-0 z-10 w-full text-end text-gray-500 dark:text-gray-400 p-0" style={{ padding: "0.3rem 0.5rem" }}>
         <div className="flex justify-end items-center gap-2">
           <p className="text-gray-500 dark:text-gray-400 text-xs" style={{ color: "#c6cbd5" }}>Powered by</p>
