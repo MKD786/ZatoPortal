@@ -527,3 +527,47 @@ h1, h2, h3, h4, h5, h6 {
     color: white !important;
   }
 }
+.client-admin-tabs{
+  .ant-tabs-top >.ant-tabs-nav{
+    margin-bottom: 0;
+  }
+}
+.query-hub-inner-tabs{
+  .ant-tabs-top >.ant-tabs-nav{
+    margin-bottom: 0;
+  }
+}
+.ant-table-body{
+  scrollbar-color: auto ;
+}
+
+.custom-radio .ant-radio-checked .ant-radio-inner {
+  border-color: #000000;
+  background-color: #000000;
+}
+
+.custom-radio .ant-radio-checked .ant-radio-inner::after {
+  background-color: #ffffff;
+}
+
+.custom-radio .ant-radio:hover .ant-radio-inner {
+  border-color: #000000;
+}
+
+.custom-radio .ant-radio-inner {
+  border-color: #000000;
+}
+.custom-checkbox {
+  .ant-checkbox-checked .ant-checkbox-inner {
+    background-color: #000000;
+    border-color: #000000;
+  }
+  
+  .ant-checkbox-inner {
+    border-color: #000000;
+  }
+  
+  .ant-checkbox:hover .ant-checkbox-inner {
+    border-color: #000000;
+  }
+}

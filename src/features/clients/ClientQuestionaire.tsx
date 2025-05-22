@@ -1,6 +1,5 @@
 import { useState } from "react"
 import {
-  EditOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   ExclamationCircleOutlined,
@@ -80,9 +79,10 @@ const ClientQuestionaire = () => {
           number: "1.1",
           text: "Has this entity traded in the financial year?",
           type: "yesno",
-          answered: true,
-          answer: "Yes",
+          answered: false,
+          answer: "",
           status: "unanswered",
+          progress: 0,
           submittedDate: "12 April 20XX",
           submittedBy: "John Doe",
           files: [],
@@ -102,6 +102,7 @@ const ClientQuestionaire = () => {
           type: "file",
           answered: true,
           status: "draft",
+          progress: 50,
           files: [
             {
               name: "ANZ-statement-march.pdf",
@@ -130,6 +131,7 @@ const ClientQuestionaire = () => {
           type: "file",
           answered: false,
           status: "unanswered",
+          progress: 0,
           files: [],
         },
       ],
@@ -147,6 +149,7 @@ const ClientQuestionaire = () => {
           type: "table",
           answered: true,
           status: "draft",
+          progress: 50,
           files: [
             {
               name: "accounts-payable-summary.xlsx",
@@ -174,6 +177,7 @@ const ClientQuestionaire = () => {
           type: "table",
           answered: false,
           status: "unanswered",
+          progress: 0,
           files: [],
         },
       ],
@@ -192,6 +196,7 @@ const ClientQuestionaire = () => {
           answered: true,
           answer: "Yes",
           status: "draft",
+          progress: 50,
           files: [
             {
               name: "new-equipment-invoice.pdf",
@@ -211,6 +216,7 @@ const ClientQuestionaire = () => {
           answered: true,
           answer: "No",
           status: "draft",
+          progress: 50,
           files: [],
         },
         {
@@ -220,6 +226,7 @@ const ClientQuestionaire = () => {
           type: "yesno",
           answered: false,
           status: "unanswered",
+          progress: 0,
           files: [],
         },
       ],
@@ -237,6 +244,7 @@ const ClientQuestionaire = () => {
           type: "yesno",
           answered: false,
           status: "unanswered",
+          progress: 0,
           files: [],
         },
         {
@@ -246,6 +254,7 @@ const ClientQuestionaire = () => {
           type: "yesno",
           answered: false,
           status: "unanswered",
+          progress: 0,
           files: [],
         },
       ],
@@ -263,6 +272,7 @@ const ClientQuestionaire = () => {
           type: "yesno",
           answered: false,
           status: "unanswered",
+          progress: 0,
           files: [],
         },
       ],
@@ -280,6 +290,7 @@ const ClientQuestionaire = () => {
           type: "table",
           answered: false,
           status: "unanswered",
+          progress: 0,
           files: [],
         },
       ],
@@ -297,6 +308,7 @@ const ClientQuestionaire = () => {
           type: "table",
           answered: false,
           status: "unanswered",
+          progress: 0,
           files: [],
         },
       ],
@@ -314,6 +326,7 @@ const ClientQuestionaire = () => {
           type: "file",
           answered: true,
           status: "posted",
+          progress: 100,
           submittedDate: "10 April 20XX",
           submittedBy: "John Doe",
           files: [
@@ -331,6 +344,7 @@ const ClientQuestionaire = () => {
           type: "text",
           answered: true,
           status: "draft",
+          progress: 50,
           textAnswer: "245 days",
           files: [],
         },
@@ -341,6 +355,7 @@ const ClientQuestionaire = () => {
           type: "text",
           answered: true,
           status: "draft",
+          progress: 50,
           textAnswer: "120 days",
           files: [],
         },
@@ -351,6 +366,7 @@ const ClientQuestionaire = () => {
           type: "file",
           answered: false,
           status: "unanswered",
+          progress: 0,
           files: [],
         },
         {
@@ -360,6 +376,7 @@ const ClientQuestionaire = () => {
           type: "file",
           answered: false,
           status: "unanswered",
+          progress: 0,
           files: [],
         },
       ],
@@ -368,17 +385,15 @@ const ClientQuestionaire = () => {
 
   // Calculate statistics
   const totalQuestions = questionnaireSections.reduce((acc, section) => acc + section.questions.length, 0)
-
   const unansweredQuestions = questionnaireSections.reduce((acc, section) => {
-    return acc + section.questions.filter((q) => q.status === "unanswered").length;
-  }, 0);
+    return acc + section.questions.filter((q) => q.status === "unanswered").length
+  }, 0)
   const draftQuestions = questionnaireSections.reduce((acc, section) => {
-    return acc + section.questions.filter((q) => q.status === "draft").length;
-  }, 0);
+    return acc + section.questions.filter((q) => q.status === "draft").length
+  }, 0)
   const postedQuestions = questionnaireSections.reduce((acc, section) => {
-    return acc + section.questions.filter((q) => q.status === "posted").length;
-  }, 0);
-
+    return acc + section.questions.filter((q) => q.status === "posted").length
+  }, 0)
   const overallProgress = Math.round(((draftQuestions + postedQuestions) / totalQuestions) * 100)
 
   const handleOpenQuestion = (sectionId: string, questionId: string) => {

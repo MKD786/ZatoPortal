@@ -1,26 +1,17 @@
 import { useState } from "react"
+import { useState } from "react"
 import {
-  EditOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   ExclamationCircleOutlined,
-  PaperClipOutlined,
-  InfoCircleOutlined,
-  EyeOutlined,
-  CalendarOutlined,
-  UserOutlined,
   FilterOutlined,
 } from "@ant-design/icons"
 import {
   Button,
   Input,
   Progress,
-  Badge,
-  Tooltip,
   Card,
   Tabs,
-  Divider,
-  Space,
   Typography,
   Tag,
   Dropdown,
@@ -38,6 +29,7 @@ interface TableRow {
   description: string
   amount: string
   accountCode: string
+  key?: string
 }
 
 interface Question {
@@ -97,7 +89,6 @@ const QueryHubNew = () => {
           text: "Please provide the bank statements for January 2024",
           type: "yesno",
           answered: true,
-          answer: "Yes",
           status: "posted",
           submittedDate: "12 April 2024",
           submittedBy: "John Doe",
@@ -106,7 +97,6 @@ const QueryHubNew = () => {
         },
       ],
     },
-
     {
       id: "bank",
       name: "Bank / Credit Card",
@@ -135,7 +125,6 @@ const QueryHubNew = () => {
         },
       ],
     },
-
     {
       id: "loans",
       name: "Loans",
@@ -190,17 +179,9 @@ const QueryHubNew = () => {
 
   // Calculate statistics
   const totalQuestions = questionnaireSections.reduce((acc, section) => acc + section.questions.length, 0)
-
-  const unansweredQuestions = questionnaireSections.reduce((acc, section) => {
-    return acc + section.questions.filter((q) => q.status === "unanswered").length
-  }, 0)
-  const draftQuestions = questionnaireSections.reduce((acc, section) => {
-    return acc + section.questions.filter((q) => q.status === "draft").length
-  }, 0)
-  const postedQuestions = questionnaireSections.reduce((acc, section) => {
-    return acc + section.questions.filter((q) => q.status === "posted").length
-  }, 0)
-
+  const unansweredQuestions = questionnaireSections.reduce((acc, section) => acc + section.questions.filter((q) => q.status === "unanswered").length, 0)
+  const draftQuestions = questionnaireSections.reduce((acc, section) => acc + section.questions.filter((q) => q.status === "draft").length, 0)
+  const postedQuestions = questionnaireSections.reduce((acc, section) => acc + section.questions.filter((q) => q.status === "posted").length, 0)
   const overallProgress = Math.round(((draftQuestions + postedQuestions) / totalQuestions) * 100)
 
   const handleOpenQuestion = (sectionId: string, questionId: string) => {
@@ -224,6 +205,7 @@ const QueryHubNew = () => {
   }
 
   const uniqueDates = getUniqueDates()
+
 
   const handleDateFilter = (date: string | null) => {
     setSelectedDate(date)
@@ -493,9 +475,9 @@ const filteredSections = questionnaireSections
           >
             {selectedDate
               ? new Date(selectedDate).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-              })
+                  month: "short",
+                  day: "numeric",
+                })
               : "Filter Date"}
           </Button>
         </Dropdown>
