@@ -1,41 +1,14 @@
 import { useState, useEffect } from "react"
 import {
-  EditOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   ExclamationCircleOutlined,
-  PaperClipOutlined,
-  InfoCircleOutlined,
-  EyeOutlined,
-  CalendarOutlined,
-  UserOutlined,
-  ArrowLeftOutlined,
-  DeleteOutlined,
-  PlusOutlined,
-  WarningOutlined,
-  UploadOutlined,
-  MinusCircleOutlined,
 } from "@ant-design/icons"
-import {
-  Button,
-  Input,
-  Progress,
-  Badge,
-  Tooltip,
-  Card,
-  Tabs,
-  Divider,
-  Space,
-  Typography,
-  Tag,
-  Modal,
-  Upload,
-  Radio,
-  message,
-} from "antd"
+import { Button, Input, Progress, Card, Tabs, Divider, Space, Typography, message } from "antd"
 import { useSelector } from "react-redux"
-import { RootState } from "@/store"
-// import { useLocation } from "react-router-dom"
+import type { RootState } from "@/store"
+import QueryDisplay from "./QueryDisplay"
+import { QuestionnaireSampleData } from "./constant"
 
 interface FileObject {
   name: string
@@ -63,7 +36,7 @@ interface Question {
   submittedBy?: string
   files: FileObject[]
   tableData?: TableRow[]
-  progress: number;
+  progress: number
   date?: string
 }
 interface QuestionnaireSection {
@@ -87,7 +60,6 @@ interface QueryItem {
   answered: boolean
   answer?: string
   textAnswer?: string
-  status: "draft" | "posted" | "unanswered"
   submittedDate?: string
   submittedBy?: string
   files: FileObject[]
@@ -98,1012 +70,100 @@ interface QueryItem {
   index: number
   sectionName: string
   total?: number
-  progress: number;
+  progress: number
+}
+interface ClientQuestionaireProps {
+  onPost?: (updatedQuestion: any) => void
+  onSave?: (updatedQuestion: any) => void
 }
 
-const { Text, Title, Paragraph } = Typography
-const { TextArea } = Input
+// Add after interfaces and before the main component
+const calculateProgress = (question: Question): number => {
+  switch (question.status) {
+    case "posted":
+      return 100;
+    case "draft":
+      let progress = 50; // Base progress for draft status
+      
+      switch (question.type) {
+        case "yesno":
+          if (question.answer) progress = 50;
+          break;
+        case "text":
+          if (question.textAnswer) progress = 50;
+          break;
+        case "file":
+          if (question.files && question.files.length > 0) progress = 50;
+          break;
+        case "table":
+          if (question.tableData && question.tableData.length > 0) progress = 50;
+          break;
+      }
+      return progress;
+    
+    case "unanswered":
+    default:
+      return 0;
+  }
+};
 
-const ClientQuestionaire = () => {
+const ProgressIndicator: React.FC<{ progress: number }> = ({ progress }) => {
+  const getProgressColor = (value: number) => {
+    if (value === 100) return "#0f766e";
+    if (value > 0) return "#faad14";
+    return "#d9d9d9";
+  };
+
+  const getProgressIcon = (value: number) => {
+    if (value === 100) {
+      return <CheckCircleOutlined style={{ fontSize: "16px", color: "#0f766e" }} />;
+    }
+    if (value > 0) {
+      return <ClockCircleOutlined style={{ fontSize: "16px", color: "#faad14" }} />;
+    }
+    return <ExclamationCircleOutlined style={{ fontSize: "16px", color: "#d9d9d9" }} />;
+  };
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+      <Progress
+        percent={progress}
+        size="small"
+        style={{ width: "128px" }}
+        strokeColor={getProgressColor(progress)}
+        showInfo={false}
+      />
+      {getProgressIcon(progress)}
+    </div>
+  );
+};
+const { Text, Title } = Typography
+
+const ClientQuestionaire = ({ onPost, onSave }: ClientQuestionaireProps) => {
   const user = useSelector((state: RootState) => state.auth.user)
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [isPenModalOpen, setIsPenModalOpen] = useState(false)
-  const [selectedQuestion, setSelectedQuestion] = useState<any>(null)
   const [activeTab, setActiveTab] = useState("all")
   const [searchTerm, setSearchTerm] = useState("")
-  const [visible, setVisible] = useState(false)
-  const [query, setQuery] = useState<QueryItem | null>(null)
-  const [response, setResponse] = useState("")
-  const [fileList, setFileList] = useState<UploadFile[]>([])
-  const [currentQueryIndex, setCurrentQueryIndex] = useState(0)
-  const [allQueries, setAllQueries] = useState<QueryItem[]>([])
-  const [unansweredQueries, setUnansweredQueries] = useState<QueryItem[]>([])
-  const [currentPenQuestionIndex, setCurrentPenQuestionIndex] = useState(0)
-  const [tableData, setTableData] = useState<TableRow[]>([])
-  const [questionnaireSections, setQuestionnaireSections] = useState<QuestionnaireSection[]>([
-    {
-      id: "trading",
-      name: "Trading Information",
-      progress: 100,
-      status: "completed",
-      questions: [
-        {
-          id: "q1",
-          number: "1.1",
-          text: "Has this entity traded in the financial year?",
-          type: "yesno",
-          answered: false,
-          answer: "",
-          status: "unanswered",
-          progress: 0,
-          submittedDate: "12 April 20XX",
-          submittedBy: "John Doe",
-          files: [],
-          date: "2024-04-12",
-        },
-      ],
-    },
-    {
-      id: "bank",
-      name: "Bank / Credit Card",
-      progress: 75,
-      status: "partial",
-      questions: [
-        {
-          id: "q2",
-          number: "2.1",
-          text: "Attach a copy of each bank statement showing the closing balance as at 31 March 20xx.",
-          type: "file",
-          answered: true,
-          status: "draft",
-          progress: 50,
-          files: [
-            {
-              name: "ANZ-statement-march.pdf",
-              category: "Bank Statement",
-              explanation: "ANZ Business Account closing statement",
-            },
-            {
-              name: "Westpac-statement-march.pdf",
-              category: "Bank Statement",
-              explanation: "Westpac Savings Account closing statement",
-            },
-          ],
-          date: "2024-04-15",
-        },
-      ],
-    },
-    {
-      id: "loans",
-      name: "Loans",
-      progress: 0,
-      status: "pending",
-      questions: [
-        {
-          id: "q3",
-          number: "3.1",
-          text: "Upload the loan statements / summaries showing interest and principal payments breakdown details from 1 April 20xx to 31 March 20xx.",
-          type: "file",
-          answered: false,
-          status: "unanswered",
-          progress: 0,
-          files: [],
-          date: "2024-04-18",
-        },
-      ],
-    },
-    {
-      id: "accounts-payable",
-      name: "Accounts Payable",
-      progress: 50,
-      status: "partial",
-      questions: [
-        {
-          id: "q4",
-          number: "4.1",
-          text: "Upload invoices/summary of any accounts payable as at 31 March 20xx.",
-          type: "table",
-          answered: true,
-          status: "draft",
-          progress: 50,
-          files: [
-            {
-              name: "accounts-payable-summary.xlsx",
-              category: "Accounts Payable",
-              explanation: "Summary of all outstanding invoices",
-            },
-          ],
-          tableData: [
-            { description: "Office Supplies Ltd", amount: "$1,250.00", accountCode: "6000 - Operating Expenses" },
-            { description: "IT Services Co", amount: "$3,500.00", accountCode: "6400 - Professional Fees" },
-          ],
-          date: "2024-04-20",
-        },
-      ],
-    },
-    {
-      id: "accounts-receivable",
-      name: "Accounts Receivable",
-      progress: 0,
-      status: "pending",
-      questions: [
-        {
-          id: "q5",
-          number: "5.1",
-          text: "Upload invoices/summary of any accounts receivable as at 31 March 20xx.",
-          type: "table",
-          answered: false,
-          status: "unanswered",
-          progress: 0,
-          files: [],
-          date: "2024-04-22",
-        },
-      ],
-    },
-    {
-      id: "assets",
-      name: "Asset and Investments",
-      progress: 33,
-      status: "partial",
-      questions: [
-        {
-          id: "q6",
-          number: "6.1",
-          text: "Were any assets or investments purchased during the year?",
-          type: "yesno",
-          answered: true,
-          answer: "Yes",
-          status: "draft",
-          progress: 50,
-          files: [
-            {
-              name: "new-equipment-invoice.pdf",
-              category: "Asset Purchase",
-              explanation: "New office equipment purchased in December",
-            },
-          ],
-          tableData: [
-            { description: "Office Equipment", amount: "$5,200.00", accountCode: "1400 - Property, Plant & Equipment" },
-          ],
-          date: "2024-04-25",
-        },
-        {
-          id: "q7",
-          number: "6.2",
-          text: "Were any assets or investments sold during the year?",
-          type: "yesno",
-          answered: true,
-          answer: "No",
-          status: "draft",
-          progress: 50,
-          files: [],
-          date: "2024-04-26",
-        },
-        {
-          id: "q8",
-          number: "6.3",
-          text: "Were any assets or investments scrapped or written off during the year?",
-          type: "yesno",
-          answered: false,
-          status: "unanswered",
-          progress: 0,
-          files: [],
-          date: "2024-04-27",
-        },
-      ],
-    },
-    {
-      id: "vehicle",
-      name: "Vehicle Expense",
-      progress: 0,
-      status: "pending",
-      questions: [
-        {
-          id: "q9",
-          number: "7.1",
-          text: "Was the business vehicle used or available for private use during the period 1 April 20xx to 31 March 20xx.",
-          type: "yesno",
-          answered: false,
-          status: "unanswered",
-          progress: 0,
-          files: [],
-          date: "2024-04-28",
-        },
-        {
-          id: "q10",
-          number: "7.2",
-          text: "Do you have a vehicle logbook that was completed for any three months period over the last three years?",
-          type: "yesno",
-          answered: false,
-          status: "unanswered",
-          progress: 0,
-          files: [],
-          date: "2024-04-29",
-        },
-      ],
-    },
-    {
-      id: "home-office",
-      name: "Home Office",
-      progress: 0,
-      status: "pending",
-      questions: [
-        {
-          id: "q11",
-          number: "8.1",
-          text: "Did you use a personal home for business purposes during the period?",
-          type: "yesno",
-          answered: false,
-          status: "unanswered",
-          progress: 0,
-          files: [],
-          date: "2024-04-30",
-        },
-      ],
-    },
-    {
-      id: "expenses-1000",
-      name: "Expenses Over $1,000",
-      progress: 0,
-      status: "pending",
-      questions: [
-        {
-          id: "q12",
-          number: "9.1",
-          text: "Attach invoices for expenses over $1000 paid during the FYxx. Also provide description of nature of work undertaken.",
-          type: "table",
-          answered: false,
-          status: "unanswered",
-          progress: 0,
-          files: [],
-          date: "2024-05-01",
-        },
-      ],
-    },
-    {
-      id: "expenses-personal",
-      name: "Expenses paid personally",
-      progress: 0,
-      status: "pending",
-      questions: [
-        {
-          id: "q13",
-          number: "10.1",
-          text: "Provide details of expenses which are related to business but not paid from your business bank accounts.",
-          type: "table",
-          answered: false,
-          status: "unanswered",
-          progress: 0,
-          files: [],
-          date: "2024-05-02",
-        },
-      ],
-    },
-    {
-      id: "other",
-      name: "Other Information",
-      progress: 20,
-      status: "partial",
-      questions: [
-        {
-          id: "q14",
-          number: "11.1",
-          text: "Attach donation receipts from 1 April 2023 to 31 March 2024, if any",
-          type: "file",
-          answered: true,
-          status: "posted",
-          progress: 100,
-          submittedDate: "10 April 20XX",
-          submittedBy: "John Doe",
-          files: [
-            {
-              name: "red-cross-donation.pdf",
-              category: "Donation Receipt",
-              explanation: "Annual donation to Red Cross",
-            },
-          ],
-          date: "2024-05-03",
-        },
-        {
-          id: "q15",
-          number: "11.2",
-          text: "Advise the number of income earning days from 1 April 20xx to 31 March 20xx.",
-          type: "text",
-          answered: true,
-          status: "draft",
-          progress: 50,
-          textAnswer: "245 days",
-          files: [],
-          date: "2024-05-04",
-        },
-        {
-          id: "q16",
-          number: "11.3",
-          text: "Advise the number of days used privately for yourself, family and friends from 1 April 20xx to 31 March 20xx.",
-          type: "text",
-          answered: true,
-          status: "draft",
-          progress: 50,
-          textAnswer: "120 days",
-          files: [],
-          date: "2024-05-05",
-        },
-        {
-          id: "q17",
-          number: "11.4",
-          text: "Attach property manager summaries from 1 April 20xx to 31 March 20xx for the property.",
-          type: "file",
-          answered: false,
-          status: "unanswered",
-          progress: 0,
-          files: [],
-          date: "2024-05-06",
-        },
-        {
-          id: "q18",
-          number: "11.5",
-          text: "Attach a copy of your Portfolio Manager for FY20xx.",
-          type: "file",
-          answered: false,
-          status: "unanswered",
-          progress: 0,
-          files: [],
-          date: "2024-05-07",
-        },
-      ],
-    },
-  ])
+  const [questionnaireSections, setQuestionnaireSections] = useState(QuestionnaireSampleData as QuestionnaireSection[])
 
   const totalQuestions = questionnaireSections.reduce((acc, section) => acc + section.questions.length, 0)
-
   const unansweredQuestions = questionnaireSections.reduce((acc, section) => {
-    return acc + section.questions.filter((q) => q.status === "unanswered").length;
-  }, 0);
+    return acc + section.questions.filter((q) => q.status === "unanswered").length
+  }, 0)
   const draftQuestions = questionnaireSections.reduce((acc, section) => {
-    return acc + section.questions.filter((q) => q.status === "draft").length;
-  }, 0);
+    return acc + section.questions.filter((q) => q.status === "draft").length
+  }, 0)
   const postedQuestions = questionnaireSections.reduce((acc, section) => {
-    return acc + section.questions.filter((q) => q.status === "posted").length;
-  }, 0);
-
+    return acc + section.questions.filter((q) => q.status === "posted").length
+  }, 0)
   const overallProgress = Math.round(((draftQuestions + postedQuestions) / totalQuestions) * 100)
 
-  useEffect(() => {
-    const allQueriesArray: QueryItem[] = []
-    const unansweredQueriesArray: QueryItem[] = []
-
-    questionnaireSections.forEach((section) => {
-      section.questions.forEach((question, idx) => {
-        const queryItem: QueryItem = {
-          ...question,
-          id: question.id || `Q-${2000 + idx + 1}`,
-          description: question.text,
-          raisedDate: question.date || "2025-04-08",
-          dueDate: "2025-04-22",
-          urgency: getUrgencyByStatus(question.status),
-          index: allQueriesArray.length + 1,
-          sectionName: section.name,
-        }
-
-        allQueriesArray.push(queryItem)
-
-        if (question.status === "unanswered") {
-          unansweredQueriesArray.push({
-            ...queryItem,
-            index: unansweredQueriesArray.length + 1,
-          })
-        }
-      })
-    })
-
-    const updatedAllQueries = allQueriesArray.map((q, idx) => ({
-      ...q,
-      index: idx + 1,
-      total: allQueriesArray.length,
-    }))
-
-    // Update the total count for unanswered queries
-    const updatedUnansweredQueries = unansweredQueriesArray.map((q, idx) => ({
-      ...q,
-      index: idx + 1,
-      total: unansweredQueriesArray.length,
-    }))
-
-    setAllQueries(updatedAllQueries)
-    setUnansweredQueries(updatedUnansweredQueries)
-  }, [questionnaireSections])
-
-  const getUrgencyByStatus = (status: string) => {
-    switch (status) {
-      case "unanswered":
-        return { status: "Due in 14 ", color: "#4CAF50" }
-      case "draft":
-        return { status: "In Progress", color: "#FFC107" }
-      case "posted":
-        return { status: "Completed", color: "#2196F3" }
-      default:
-        return { status: "Due in 14 ", color: "#4CAF50" }
-    }
-  }
-
-  const handleOpenQuestion = (sectionId: string, questionId: string) => {
-    const section = questionnaireSections.find((s) => s.id === sectionId)
-    const question = section?.questions.find((q) => q.id === questionId)
-
-    if (question && section) {
-      setSelectedQuestion({
-        ...question,
-        sectionName: section.name,
-        sectionId: sectionId,
-      })
-
-      setFileList([])
-      setTableData(question.tableData || [])
-
-      if (question.status === "draft" && question.files && question.files.length > 0) {
-        const uploadFiles = question.files.map((file, index) => ({
-          uid: `existing-${index}`,
-          name: file.name,
-          status: "done",
-          url: "#",
-        }))
-        setFileList(uploadFiles)
-      }
-      setIsModalOpen(true)
-    }
-  }
-  const handlePostSingleQuestion = (sectionId: string, questionId: string) => {
-    setQuestionnaireSections(prevSections => {
-      return prevSections.map(section => {
-        if (section.id === sectionId) {
-          return {
-            ...section,
-            questions: section.questions.map(question => {
-              if (question.id === questionId && question.status === "draft") {
-                return {
-                  ...question,
-                  status: "posted",
-                  progress: 100, // Set progress to 100% when posting
-                  submittedDate: new Date().toLocaleDateString(),
-                  submittedBy: user?.name || "Current User",
-                }
-              }
-              return question
-            }),
-          }
-        }
-        return section
-      })
-    })
-    message.success("Question posted successfully")
-    setActiveTab("posted") // Switch to posted tab after posting
-  }
-
-  // const handleOpenPenModal = (sectionId: string, questionId: string) => {
-  //   const section = questionnaireSections.find((s) => s.id === sectionId)
-  //   const question = section?.questions.find((q) => q.id === questionId)
-
-  //   if (question && section) {
-  //     const questionIndex = allQueries.findIndex((q) => q.id === questionId)
-
-  //     setCurrentPenQuestionIndex(questionIndex)
-  //     setSelectedQuestion({
-  //       ...question,
-  //       sectionName: section.name,
-  //       sectionId: sectionId,
-  //     })
-
-  //     if (question.type === "yesno") {
-  //       setResponse(question.answer || "")
-  //     } else if (question.type === "text") {
-  //       setResponse(question.textAnswer || "")
-  //     } else {
-  //       setResponse("")
-  //     }
-
-  //     setFileList([])
-  //     setTableData(question.tableData || [])
-
-  //     if (question.files && question.files.length > 0) {
-  //       const uploadFiles = question.files.map((file, index) => ({
-  //         uid: `existing-${index}`,
-  //         name: file.name,
-  //         status: "done",
-  //         url: "#",
-  //       }))
-  //       setFileList(uploadFiles)
-  //     }
-
-  //     setIsPenModalOpen(true)
-  //   }
-  // }
-  // const handlePostQuestion = (updatedQuestion: any) => {
-  //   setQuestionnaireSections(prevSections => {
-  //     return prevSections.map(section => {
-  //       if (section.id === updatedQuestion.sectionId) {
-  //         return {
-  //           ...section,
-  //           questions: section.questions.map(question => {
-  //             if (question.id === updatedQuestion.id) {
-  //               return {
-  //                 ...question,
-  //                 ...updatedQuestion,
-  //                 answered: true,
-  //                 status: "posted",
-  //                 progress: 100, // Set progress to 100% when posting
-  //                 submittedDate: new Date().toLocaleDateString(),
-  //                 submittedBy: user?.name || "Current User",
-  //               }
-  //             }
-  //             return question
-  //           }),
-  //         }
-  //       }
-  //       return section
-  //     })
-  //   })
-  //   setIsModalOpen(false)
-  //   setActiveTab("posted") // Switch to posted tab after posting
-  //   message.success("Question posted successfully")
-  // }
-  // const handleSaveQuestion = (updatedQuestion: any) => {
-  //   setQuestionnaireSections(prevSections => {
-  //     return prevSections.map(section => {
-  //       if (section.id === updatedQuestion.sectionId) {
-  //         return {
-  //           ...section,
-  //           questions: section.questions.map(question => {
-  //             if (question.id === updatedQuestion.id) {
-  //               return {
-  //                 ...question,
-  //                 ...updatedQuestion,
-  //                 answered: true,
-  //                 status: "draft",
-  //                 progress: 50, // Set progress to 50% when saving as draft
-  //                 submittedDate: new Date().toLocaleDateString(),
-  //                 submittedBy: user?.name || "Current User",
-  //               }
-  //             }
-  //             return question
-  //           }),
-  //         }
-  //       }
-  //       return section
-  //     })
-  //   })
-  //   setIsModalOpen(false)
-  //   setActiveTab("draft") // Switch to draft tab after saving
-  //   message.success("Question saved as draft")
-  // }
-
-  // Function to navigate to previous question in pen modal
-  const handlePreviousPenQuestion = () => {
-    if (currentPenQuestionIndex > 0) {
-      const prevIndex = currentPenQuestionIndex - 1
-      const prevQuestion = allQueries[prevIndex]
-
-      // Find the section for this question
-      const section = questionnaireSections.find((s) => s.questions.some((q) => q.id === prevQuestion.id))
-
-      if (section) {
-        const question = section.questions.find((q) => q.id === prevQuestion.id)
-
-        if (question) {
-          setCurrentPenQuestionIndex(prevIndex)
-          setSelectedQuestion({
-            ...question,
-            sectionName: section.name,
-            sectionId: section.id,
-          })
-
-          // Reset response based on question type
-          if (question.type === "yesno") {
-            setResponse(question.answer || "")
-          } else if (question.type === "text") {
-            setResponse(question.textAnswer || "")
-          } else {
-            setResponse("")
-          }
-
-          // Reset fileList
-          setFileList([])
-          setTableData(question.tableData || [])
-
-          // If it has files, add them to fileList
-          if (question.files && question.files.length > 0) {
-            const uploadFiles = question.files.map((file, index) => ({
-              uid: `existing-${index}`,
-              name: file.name,
-              status: "done",
-              url: "#", // Placeholder URL
-            }))
-            setFileList(uploadFiles)
-          }
-        }
-      }
-    }
-  }
-
-  // Function to navigate to next question in pen modal
-  const handleNextPenQuestion = () => {
-    if (currentPenQuestionIndex < allQueries.length - 1) {
-      const nextIndex = currentPenQuestionIndex + 1
-      const nextQuestion = allQueries[nextIndex]
-
-      // Find the section for this question
-      const section = questionnaireSections.find((s) => s.questions.some((q) => q.id === nextQuestion.id))
-
-      if (section) {
-        const question = section.questions.find((q) => q.id === nextQuestion.id)
-
-        if (question) {
-          setCurrentPenQuestionIndex(nextIndex)
-          setSelectedQuestion({
-            ...question,
-            sectionName: section.name,
-            sectionId: section.id,
-          })
-
-          // Reset response based on question type
-          if (question.type === "yesno") {
-            setResponse(question.answer || "")
-          } else if (question.type === "text") {
-            setResponse(question.textAnswer || "")
-          } else {
-            setResponse("")
-          }
-
-          // Reset fileList
-          setFileList([])
-          setTableData(question.tableData || [])
-
-          // If it has files, add them to fileList
-          if (question.files && question.files.length > 0) {
-            const uploadFiles = question.files.map((file, index) => ({
-              uid: `existing-${index}`,
-              name: file.name,
-              status: "done",
-              url: "#", // Placeholder URL
-            }))
-            setFileList(uploadFiles)
-          }
-        }
-      }
-    }
-  }
-
-  // Function to handle opening the respond modal
-  const handleRespondToQueries = () => {
-    if (unansweredQueries.length > 0) {
-      // Find the loan statements question (q3) in the unanswered queries
-      const loanStatementQuery = unansweredQueries.find((q) => q.id === "q3")
-
-      if (loanStatementQuery) {
-        // If the loan statement query exists, show it first
-        const indexInAllQueries = allQueries.findIndex((q) => q.id === "q3")
-
-        if (indexInAllQueries !== -1) {
-          setCurrentQueryIndex(indexInAllQueries)
-          setQuery({
-            ...loanStatementQuery,
-            index: 1, // Show as first in the unanswered set
-            total: unansweredQueries.length,
-          })
-          setVisible(true)
-          setResponse("")
-          setFileList([])
-          setTableData([])
-          return
-        }
-      }
-
-      // Fallback to the first unanswered query if loan statement query is not found
-      const firstUnansweredQuery = unansweredQueries[0]
-      const indexInAllQueries = allQueries.findIndex((q) => q.id === firstUnansweredQuery.id)
-
-      if (indexInAllQueries !== -1) {
-        setCurrentQueryIndex(indexInAllQueries)
-        setQuery({
-          ...firstUnansweredQuery,
-          index: 1, // Show as first in the unanswered set
-          total: unansweredQueries.length,
-        })
-        setVisible(true)
-        setResponse("")
-        setFileList([])
-        setTableData([])
-      }
-    } else {
-      // If there are no unanswered queries, show a message
-      message.info("There are no unanswered queries to respond to.")
-    }
-  }
-
-  // Function to navigate to previous query
-  const handlePreviousQuery = () => {
-    // Only navigate among unanswered queries
-    if (query && currentQueryIndex > 0) {
-      const prevUnansweredIndex = unansweredQueries.findIndex((q) => q.id === query.id) - 1
-
-      if (prevUnansweredIndex >= 0) {
-        const prevQuery = unansweredQueries[prevUnansweredIndex]
-        const indexInAllQueries = allQueries.findIndex((q) => q.id === prevQuery.id)
-
-        setCurrentQueryIndex(indexInAllQueries)
-        setQuery({
-          ...prevQuery,
-          index: prevUnansweredIndex + 1,
-          total: unansweredQueries.length,
-        })
-        setResponse("")
-        setFileList([])
-        setTableData([])
-      }
-    }
-  }
-
-  // Function to navigate to next query
-  const handleNextQuery = () => {
-    // Only navigate among unanswered queries
-    if (query) {
-      const nextUnansweredIndex = unansweredQueries.findIndex((q) => q.id === query.id) + 1
-
-      if (nextUnansweredIndex < unansweredQueries.length) {
-        const nextQuery = unansweredQueries[nextUnansweredIndex]
-        const indexInAllQueries = allQueries.findIndex((q) => q.id === nextQuery.id)
-
-        setCurrentQueryIndex(indexInAllQueries)
-        setQuery({
-          ...nextQuery,
-          index: nextUnansweredIndex + 1,
-          total: unansweredQueries.length,
-        })
-        setResponse("")
-        setFileList([])
-        setTableData([])
-      }
-    }
-  }
-  const handleSaveAllDrafts = () => {
-    const hasDraftableQuestions = questionnaireSections.some(section =>
-      section.questions.some(q => q.status === "unanswered" && q.answered)
-    )
-
-    if (!hasDraftableQuestions) {
-      message.warning("No pending questions to save as drafts")
-      return
-    }
-
-    setQuestionnaireSections(prevSections => {
-      return prevSections.map(section => ({
-        ...section,
-        questions: section.questions.map(question => {
-          if (question.status === "unanswered" && question.answered) {
-            return {
-              ...question,
-              status: "draft",
-              progress: Math.floor(Math.random() * 100), // Set progress to 50% when saving as draft
-              submittedDate: new Date().toLocaleDateString(),
-              submittedBy: user?.name || "Current User",
-            }
-          }
-          return question
-        }),
-      }))
-    })
-    message.success("All pending questions saved as drafts")
-    setActiveTab("draft") // Switch to draft tab after saving
-  }
-
-  const handlePostAllDrafts = () => {
-    const hasDraftQuestions = questionnaireSections.some(section =>
-      section.questions.some(q => q.status === "draft")
-    )
-
-    if (!hasDraftQuestions) {
-      message.warning("No draft questions to post")
-      return
-    }
-
-    setQuestionnaireSections(prevSections => {
-      return prevSections.map(section => ({
-        ...section,
-        questions: section.questions.map(question => {
-          if (question.status === "draft") {
-            return {
-              ...question,
-              status: "posted",
-              progress: 100, // Set progress to 100% when posting
-              submittedDate: new Date().toLocaleDateString(),
-              submittedBy: user?.name || "Current User",
-            }
-          }
-          return question
-        }),
-      }))
-    })
-    message.success("All draft questions posted successfully")
-    setActiveTab("posted") // Switch to posted tab after posting
-  }
-  // Function to close the modal
-  const handleCloseModal = () => {
-    setVisible(false)
-    setQuery(null)
-    setResponse("")
-    setFileList([])
-    setTableData([])
-    setIsModalOpen(false)
-    setIsPenModalOpen(false)
-    setSelectedQuestion(null)
-  }
-
-  // Function to update question status
-  const updateQuestionStatus = (questionId: string, newStatus: "draft" | "posted" | "unanswered", data: any) => {
-    // Create a deep copy of the questionnaire sections
-    const updatedSections = [...questionnaireSections]
-
-    // Find the section and question to update
-    for (let i = 0; i < updatedSections.length; i++) {
-      const questionIndex = updatedSections[i].questions.findIndex((q) => q.id === questionId)
-      if (questionIndex !== -1) {
-        updatedSections[i].questions[questionIndex] = {
-          ...updatedSections[i].questions[questionIndex],
-          status: newStatus,
-          answered: true,
-          progress: newStatus === "posted" ? 100 : newStatus === "draft" ? Math.floor(Math.random() * 100) : 0, // Set progress based on status
-          ...data,
-        }
-
-        // Update section progress
-        const totalSectionQuestions = updatedSections[i].questions.length
-        const answeredSectionQuestions = updatedSections[i].questions.filter((q) => q.answered).length
-        updatedSections[i].progress = Math.round((answeredSectionQuestions / totalSectionQuestions) * 100)
-
-        // Update section status
-        if (updatedSections[i].progress === 100) {
-          updatedSections[i].status = "completed"
-        } else if (updatedSections[i].progress > 0) {
-          updatedSections[i].status = "partial"
-        } else {
-          updatedSections[i].status = "pending"
-        }
-
-        break
-      }
-    }
-
-    // Update state
-    setQuestionnaireSections(updatedSections)
-  }
-
-  // Function to handle submit
-  const handleSubmit = (action: "draft" | "post" = "draft") => {
-    if (query) {
-      const newStatus = action === "post" ? "posted" : "draft"
-      const currentDate = new Date().toLocaleDateString("en-US", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      })
-
-      const data: any = {
-        submittedDate: currentDate,
-        submittedBy: "Current User",
-        progress: action === "post" ? 100 : Math.floor(Math.random() * 100), // Set progress based on action
-      }
-
-      if (query.type === "yesno") {
-        data.answer = response
-      } else if (query.type === "text") {
-        data.textAnswer = response
-      } else if (query.type === "table") {
-        data.tableData = tableData
-      }
-
-      data.files = fileList.map((file) => ({
-        name: file.name,
-        category: "Uploaded File",
-        explanation: "",
-      }))
-
-      updateQuestionStatus(query.id, newStatus, data)
-
-      message.success(`Response ${action === "post" ? "posted" : "saved as draft"} successfully!`)
-
-      // Instead of closing the modal, navigate to the next query if available
-      if (unansweredQueries.findIndex((q) => q.id === query.id) < unansweredQueries.length - 1) {
-        handleNextQuery()
-        // Reset response and fileList for the next query
-        setResponse("")
-        setFileList([])
-        setTableData([])
-      } else {
-        // If this is the last query, then close the modal
-        message.success("All queries have been answered!")
-        handleCloseModal()
-      }
-    }
-  }
-
-  // Function to handle submit for the new question modal
-  const handleQuestionSubmit = (action: "draft" | "post") => {
-    if (selectedQuestion) {
-      const newStatus = action === "post" ? "posted" : "draft"
-      const currentDate = new Date().toLocaleDateString("en-US", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      })
-
-      const data: any = {
-        submittedDate: currentDate,
-        submittedBy: "Current User",
-        progress: action === "post" ? 100 : Math.floor(Math.random() * 100), // Set progress based on action
-      }
-
-      if (selectedQuestion.type === "yesno") {
-        data.answer = response || selectedQuestion.answer
-      } else if (selectedQuestion.type === "text") {
-        data.textAnswer = response || selectedQuestion.textAnswer
-      } else if (selectedQuestion.type === "table") {
-        data.tableData = tableData
-      }
-
-      data.files = fileList.map((file) => ({
-        name: file.name,
-        category: "Uploaded File",
-        explanation: "",
-      }))
-
-      updateQuestionStatus(selectedQuestion.id, newStatus, data)
-
-      message.success(`Response ${action === "post" ? "posted" : "saved as draft"} successfully!`)
-      handleCloseModal()
-    }
-  }
-
-  // Function to handle submit for the pen modal
-  const handlePenModalSubmit = (action: "draft" | "post") => {
-    if (selectedQuestion) {
-      const newStatus = action === "post" ? "posted" : "draft"
-      const currentDate = new Date().toLocaleDateString("en-US", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      })
-
-      const data: any = {
-        submittedDate: currentDate,
-        submittedBy: "Current User",
-        progress: action === "post" ? 100 : Math.floor(Math.random() * 100), // Set progress based on action
-      }
-
-      if (selectedQuestion.type === "yesno") {
-        data.answer = response || selectedQuestion.answer
-      } else if (selectedQuestion.type === "text") {
-        data.textAnswer = response || selectedQuestion.textAnswer
-      } else if (selectedQuestion.type === "table") {
-        data.tableData = tableData
-      }
-
-      data.files = fileList.map((file) => ({
-        name: file.name,
-        category: "Uploaded File",
-        explanation: "",
-      }))
-
-      updateQuestionStatus(selectedQuestion.id, newStatus, data)
-
-      message.success(`Response ${action === "post" ? "posted" : "saved as draft"} successfully!`)
-
-      // Navigate to next question if available
-      if (currentPenQuestionIndex < allQueries.length - 1) {
-        handleNextPenQuestion()
-      } else {
-        handleCloseModal()
-      }
-    }
-  }
+  const items = [
+    { key: "all", label: `All Questions (${totalQuestions})` },
+    { key: "unanswered", label: `Pending (${unansweredQuestions})` },
+    { key: "draft", label: `Draft (${draftQuestions})` },
+    { key: "posted", label: `Posted (${postedQuestions})` },
+  ]
+  const user_control = JSON.parse(sessionStorage.getItem("user") || "{}")
 
   // Filter sections based on active tab and search term
   const filteredSections = questionnaireSections
@@ -1127,61 +187,297 @@ const ClientQuestionaire = () => {
         questions: filteredQuestions,
       }
     })
-    .filter(Boolean as any) // Remove null sections
+    .filter(Boolean as any) 
 
-  // Function to add a new row to the table data
-  const handleAddTableRow = () => {
-    const newRow: TableRow = {
-      key: `new-${tableData.length}`,
-      description: "",
-      amount: "",
-      accountCode: "",
-    }
-    setTableData([...tableData, newRow])
-  }
+  //   if (onSave) {
+  //     onSave(updatedQuestion)
+  //   } else {
+  //     setQuestionnaireSections((prevSections) => {
+  //       return prevSections.map((section) => {
+  //         if (section.id === updatedQuestion.sectionId) {
+  //           return {
+  //             ...section,
+  //             questions: section.questions.map((question) => {
+  //               if (question.id === updatedQuestion.id) {
+  //                 return {
+  //                   ...question,
+  //                   ...updatedQuestion,
+  //                   answered: true,
+  //                   status: "draft",
+  //                   progress: 50,
+  //                   submittedDate: new Date().toLocaleDateString(),
+  //                   submittedBy: user?.name || "Current User",
+  //                 }
+  //               }
+  //               return question
+  //             }),
+  //           }
+  //         }
+  //         return section
+  //       })
+  //     })
+  //     message.success("Question saved as draft")
+  //   }
+  // }
+//     const handleSaveQuestion = (updatedQuestion: any) => {
+//   if (onSave) {
+//     onSave(updatedQuestion);
+//   } else {
+//     setQuestionnaireSections((prevSections) => {
+//       return prevSections.map((section) => {
+//         if (section.id === updatedQuestion.sectionId) {
+//           const updatedQuestionWithProgress = {
+//             ...updatedQuestion,
+//             answered: true,
+//             status: "draft",
+//             progress: calculateProgress({ ...updatedQuestion, status: "draft" }),
+//             submittedDate: new Date().toLocaleDateString(),
+//             submittedBy: user?.name || "Current User",
+//           };
 
-  // Function to remove a row from the table data
-  const handleRemoveTableRow = (key: string) => {
-    setTableData(tableData.filter((row) => row.key !== key))
-  }
+//           return {
+//             ...section,
+//             questions: section.questions.map((q) =>
+//               q.id === updatedQuestion.id ? updatedQuestionWithProgress : q
+//             ),
+//           };
+//         }
+//         return section;
+//       });
+//       });
+//     message.success("Question saved as draft");
+//   }
+// };
+// const handleSaveQuestion = (updatedQuestion: any) => {
+//   if (onSave) {
+//     onSave(updatedQuestion);
+//   } else {
+//     setQuestionnaireSections((prevSections) => {
+//       return prevSections.map((section) => {
+//         if (section.id === updatedQuestion.sectionId) {
+//           // Create updated question with all necessary fields
+//           const updatedQuestionWithProgress = {
+//             ...updatedQuestion,
+//             answered: true,
+//             status: "draft",
+//             progress: 50,
+//             submittedDate: new Date().toLocaleDateString(),
+//             submittedBy: user?.name || "Current User",
+//             // Handle different question types
+//             ...(updatedQuestion.type === "yesno" && {
+//               answer: updatedQuestion.response
+//             }),
+//             ...(updatedQuestion.type === "text" && {
+//               textAnswer: updatedQuestion.details
+//             }),
+//             ...(updatedQuestion.type === "table" && {
+//               tableData: updatedQuestion.tableData || []
+//             }),
+//             files: updatedQuestion.files || []
+//           };
 
-  // Function to update a table row
-  const handleTableRowChange = (key: string, field: keyof TableRow, value: string) => {
-    setTableData(
-      tableData.map((row) => {
-        if (row.key === key) {
-          return { ...row, [field]: value }
+//           // Update section questions
+//           const updatedQuestions = section.questions.map((q) =>
+//             q.id === updatedQuestion.id ? updatedQuestionWithProgress : q
+//           );
+
+//           // Calculate section progress
+//           const totalQuestions = updatedQuestions.length;
+//           const answeredQuestions = updatedQuestions.filter(q => q.answered).length;
+//           const sectionProgress = Math.round((answeredQuestions / totalQuestions) * 100);
+
+//           return {
+//             ...section,
+//             questions: updatedQuestions,
+//             progress: sectionProgress,
+//             status: sectionProgress === 100 ? "completed" : sectionProgress > 0 ? "partial" : "pending"
+//           };
+//         }
+//         return section;
+//       });
+//     });
+    
+//     message.success("Question saved as draft");
+//     setActiveTab("draft"); // Switch to draft tab after saving
+//   }
+// };
+const handleSaveQuestion = (updatedQuestion: any) => {
+  if (onSave) {
+    onSave(updatedQuestion);
+  } else {
+    setQuestionnaireSections((prevSections) => {
+      return prevSections.map((section) => {
+        if (section.id === updatedQuestion.sectionId) {
+          // Create updated question with all necessary fields
+          const updatedQuestionWithProgress = {
+            ...updatedQuestion,
+            answered: true,
+            status: "draft",
+            progress: 50,
+            submittedDate: new Date().toLocaleDateString(),
+            submittedBy: user?.name || "Current User",
+            // Handle different question types
+            ...(updatedQuestion.type === "yesno" && {
+              answer: updatedQuestion.response
+            }),
+            ...(updatedQuestion.type === "text" && {
+              textAnswer: updatedQuestion.details
+            }),
+            ...(updatedQuestion.type === "table" && {
+              tableData: updatedQuestion.tableData || []
+            }),
+            files: updatedQuestion.files || []
+          };
+
+          // Update section questions
+          const updatedQuestions = section.questions.map((q) =>
+            q.id === updatedQuestion.id ? updatedQuestionWithProgress : q
+          );
+
+          // Calculate section progress
+          const totalQuestions = updatedQuestions.length;
+          const answeredQuestions = updatedQuestions.filter(q => q.answered).length;
+          const sectionProgress = Math.round((answeredQuestions / totalQuestions) * 100);
+
+          return {
+            ...section,
+            questions: updatedQuestions,
+            progress: sectionProgress,
+            status: sectionProgress === 100 ? "completed" : sectionProgress > 0 ? "partial" : "pending"
+          };
         }
-        return row
-      }),
+        return section;
+      });
+    });
+    
+    // message.success("Question saved as draft");
+    setActiveTab("draft"); 
+  }
+};
+const handlePostQuestion = (updatedQuestion: any) => {
+  if (onPost) {
+    onPost(updatedQuestion);
+  } else {
+    setQuestionnaireSections((prevSections) => {
+      return prevSections.map((section) => {
+        if (section.id === updatedQuestion.sectionId) {
+          // Create updated question with all necessary fields
+          const updatedQuestionWithProgress = {
+            ...updatedQuestion,
+            answered: true,
+            status: "posted",
+            progress: 100,
+            submittedDate: new Date().toLocaleDateString(),
+            submittedBy: user?.name || "Current User",
+            // Handle different question types
+            ...(updatedQuestion.type === "yesno" && {
+              answer: updatedQuestion.response
+            }),
+            ...(updatedQuestion.type === "text" && {
+              textAnswer: updatedQuestion.details
+            }),
+            ...(updatedQuestion.type === "table" && {
+              tableData: updatedQuestion.tableData || []
+            }),
+            files: updatedQuestion.files || []
+          };
+
+          // Update section questions
+          const updatedQuestions = section.questions.map((q) =>
+            q.id === updatedQuestion.id ? updatedQuestionWithProgress : q
+          );
+
+          // Calculate section progress
+          const totalQuestions = updatedQuestions.length;
+          const answeredQuestions = updatedQuestions.filter(q => q.status === "posted").length;
+          const sectionProgress = Math.round((answeredQuestions / totalQuestions) * 100);
+
+          return {
+            ...section,
+            questions: updatedQuestions,
+            progress: sectionProgress,
+            status: sectionProgress === 100 ? "completed" : sectionProgress > 0 ? "partial" : "pending"
+          };
+        }
+        return section;
+      });
+    });
+
+    // message.success("Question posted successfully");
+    setActiveTab("posted"); // Switch to posted tab after posting
+  }
+};
+  const handleSaveAllDrafts = () => {
+    const hasDraftableQuestions = questionnaireSections.some((section) =>
+      section.questions.some((q) => q.status === "unanswered" && q.answered),
     )
+
+    if (!hasDraftableQuestions) {
+      message.warning("No pending questions to save as drafts")
+      return
+    }
+
+    setQuestionnaireSections((prevSections) => {
+      return prevSections.map((section) => ({
+        ...section,
+        questions: section.questions.map((question) => {
+          if (question.status === "unanswered" && question.answered) {
+            return {
+              ...question,
+              status: "draft",
+              progress: Math.floor(Math.random() * 100),
+              submittedDate: new Date().toLocaleDateString(),
+              submittedBy: user?.name || "Current User",
+            }
+          }
+          return question
+        }),
+      }))
+    })
+    message.success("All pending questions saved as drafts")
+    setActiveTab("draft")
   }
 
-  // Function to handle file view
-  const handleFileView = (file: UploadFile) => {
-    message.info(`Viewing file: ${file.name}`)
-    // In a real application, you would open the file in a new tab or modal
-    window.open("#", "_blank")
+  const handlePostAllDrafts = () => {
+    const hasDraftQuestions = questionnaireSections.some((section) =>
+      section.questions.some((q) => q.status === "draft"),
+    )
+
+    if (!hasDraftQuestions) {
+      message.warning("No draft questions to post")
+      return
+    }
+
+    setQuestionnaireSections((prevSections) => {
+      return prevSections.map((section) => ({
+        ...section,
+        questions: section.questions.map((question) => {
+          if (question.status === "draft") {
+            return {
+              ...question,
+              status: "posted",
+              progress: 100,
+              submittedDate: new Date().toLocaleDateString(),
+              submittedBy: user?.name || "Current User",
+            }
+          }
+          return question
+        }),
+      }))
+    })
+    message.success("All draft questions posted successfully")
+    setActiveTab("posted")
   }
 
-  // Function to handle file delete
-  const handleFileDelete = (file: UploadFile) => {
-    setFileList(fileList.filter((f) => f.uid !== file.uid))
-    message.success(`File ${file.name} removed`)
-  }
-
-  const items = [
-    { key: "all", label: `All Questions (${totalQuestions})` },
-    { key: "unanswered", label: `Pending (${unansweredQuestions})` },
-    { key: "draft", label: `Draft (${draftQuestions})` },
-    { key: "posted", label: `Posted (${postedQuestions})` },
-  ]
-  const user_control = JSON.parse(sessionStorage.getItem("user") || "{}")
-  // const routerName = useLocation().pathname
   return (
-    <div className={`flex flex-col min-h-screen dark:bg-gray-900 dark:text-white bg-gray-50 ${user_control?.role === "client" ? "p-4 md:p-6" : ""}`}>
+    <div
+      className={`flex flex-col min-h-screen dark:bg-gray-900 dark:text-white bg-gray-50 ${user_control?.role === "client" ? "p-4 md:p-6" : ""}`}
+    >
       {/* Statistics Dashboard */}
-      <div className="dark:bg-gray-900 dark:text-white" style={{ borderBottom: "1px solid #f0f0f0", boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
+      <div
+        className="dark:bg-gray-900 dark:text-white"
+        style={{ borderBottom: "1px solid #f0f0f0", boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}
+      >
         <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 1.5rem 1.5rem" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "24px" }}>
             <Card bordered={false} style={{ borderLeft: "4px solid #d9d9d9" }}>
@@ -1231,296 +527,146 @@ const ClientQuestionaire = () => {
       </div>
 
       {/* Filter Tabs */}
-      <div className="dark:bg-gray-900 dark:text-white" style={{ borderBottom: "1px solid #f0f0f0", boxShadow: "0 1px 2px rgba(0,0,0,0.05)", }}>
-        <div className="flex justify-between items-center query-hub-inner-tabs" style={{ margin: "0 auto", padding: "8px 24px" }}>
+      <div
+        className="dark:bg-gray-900 dark:text-white"
+        style={{ borderBottom: "1px solid #f0f0f0", boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}
+      >
+        <div
+          className="flex justify-between items-center query-hub-inner-tabs"
+          style={{ margin: "0 auto", padding: "8px 24px" }}
+        >
           <Tabs activeKey={activeTab} onChange={setActiveTab} items={items} />
           <div className="flex items-center gap-4 text-[#4A5568] text-[14px] pl-9">
             <Text style={{ whiteSpace: "nowrap" }}>Submitted: Apr 8, 2025</Text>
             <Text style={{ whiteSpace: "nowrap" }}>Due date: Apr 22, 2025</Text>
             <Text style={{ whiteSpace: "nowrap", color: "#4CAF50" }}>Due in 14 days</Text>
           </div>
-          <Input placeholder="Search Questionnaire, etc" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ width: "200px" }} allowClear />
+          <Input
+            placeholder="Search Questionnaire, etc"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ width: "200px" }}
+            allowClear
+          />
         </div>
       </div>
 
       {/* Main Content */}
       <div style={{ flex: 1, padding: "24px" }}>
         <div style={{ margin: "0 auto" }}>
-          {/* Respond to Queries Button above Trading Information */}
-          <div style={{ marginBottom: "0.5rem", display: "flex", justifyContent: "flex-end" }}>
-            <Button
-              type="primary"
-              onClick={handleRespondToQueries}
-              style={{ background: "#0f766e", height: "36px", display: "flex", alignItems: "center" }}
-            >
-              Respond to Queries
-            </Button>
-          </div>
-
-         {filteredSections.length > 0 ? (
-  filteredSections.map((section) => (
-    <div key={section?.id} style={{ marginBottom: "32px" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "8px",
-        }}
-      >
-        <Title level={4} style={{ margin: 0 }}>
-          {section?.name}
-        </Title>
-      </div>
-
-      {section?.questions.map((question) => (
-        <div key={question.id} style={{ marginBottom: "16px" }}>
-          <div style={{ position: "relative", padding: "8px 0" }}>
-            {/* Progress + Icon */}
-            <div
-              style={{
-                position: "absolute",
-                top: "-22px",
-                right: "0px",
-                zIndex: 1,
-                padding: "4px 8px",
-                borderRadius: "4px",
-                display: "flex",
-                alignItems: "center",
-                gap: "4px",
-              }}
-            >
-              <Progress
-                percent={question.progress}
-                size="small"
-                style={{ width: "128px" }}
-                strokeColor={
-                  question.progress === 100
-                    ? "#0f766e"
-                    : question.progress > 0
-                    ? "#faad14"
-                    : "#d9d9d9"
-                }
-                showInfo={false}
-              />
-
-              {question.progress === 100 && (
-                <CheckCircleOutlined style={{ fontSize: "16px", color: "#0f766e" }} />
-              )}
-              {question.progress > 0 && question.progress < 100 && (
-                <ClockCircleOutlined style={{ fontSize: "16px", color: "#faad14" }} />
-              )}
-              {question.progress === 0 && (
-                <ExclamationCircleOutlined style={{ fontSize: "16px", color: "#d9d9d9" }} />
-              )}
-            </div>
-
-            <Card>
-              <div style={{ padding: "8px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                  <div style={{ flex: 1 }}>
-                    <Paragraph style={{ margin: 0 }}>
-                      <Text strong>{question.number}</Text> {question.text}
-                    </Paragraph>
-
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "8px" }}>
-                      <Badge
-                        status={
-                          question.progress === 100
-                            ? "success"
-                            : question.progress > 0
-                            ? "warning"
-                            : "default"
-                        }
-                        text={
-                          question.progress === 100
-                            ? "Posted"
-                            : question.progress > 0
-                            ? "Draft"
-                            : "Unanswered"
-                        }
-                      />
-                     <Text type="secondary" style={{ fontSize: "12px" }}>|</Text>
-
-                      <Text type="secondary" style={{ fontSize: "12px" }}>
-                        {question.type === "yesno" && "Yes/No Question"}
-                        {question.type === "file" && "File Upload"}
-                        {question.type === "text" && "Text Response"}
-                        {question.type === "table" && "Tabular Data"}
-                      </Text>
-
-                      {question.progress === 100 && (
-                        <>
-                          <Text type="secondary" style={{ fontSize: "12px" }}>
-                            |
-                          </Text>
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              fontSize: "12px",
-                              color: "rgba(0, 0, 0, 0.45)",
-                            }}
-                          >
-                            <CalendarOutlined style={{ marginRight: "4px", fontSize: "12px" }} />
-                            Submitted: {question?.submittedDate}
-                          </div>
-                          <Text type="secondary" style={{ fontSize: "12px" }}>
-                            |
-                          </Text>
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              fontSize: "12px",
-                              color: "rgba(0, 0, 0, 0.45)",
-                            }}
-                          >
-                            <UserOutlined style={{ marginRight: "4px", fontSize: "12px" }} />
-                            By: {question.submittedBy}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  <div style={{ display: "flex", gap: "8px", marginLeft: "16px" }}>
-                    {question.progress === 100 ? (
-                      <Button icon={<EyeOutlined />} onClick={() => handleOpenQuestion(section.id, question.id)}>
-                        View Only
-                      </Button>
-                    ) : question.progress > 0 ? (
-                      <>
-                        <Button
-                          icon={<EditOutlined />}
-                          onClick={() => handleOpenQuestion(section.id, question.id)}
-                        >
-                          {user_control.role === "client" ? "Edit Draft" : "View Draft"}
-                        </Button>
-                        <Button
-                          disabled={user_control.role !== "client"}
-                          type="primary"
-                          icon={<CheckCircleOutlined />}
-                          style={{
-                            background: "#0f766e",
-                            color: user_control.role !== "client" ? "#d9d9d9" : "#fff",
-                          }}
-                          onClick={() => handlePostSingleQuestion(section.id, question.id)}
-                        >
-                          Post
-                        </Button>
-                      </>
-                    ) : (
-                      <Button
-                        disabled={user_control.role !== "client"}
-                        icon={<EditOutlined />}
-                        onClick={() => handleOpenQuestion(section.id, question.id)}
-                      >
-                        Answer
-                      </Button>
-                    )}
-                  </div>
+          {filteredSections.length > 0 ? (
+            filteredSections.map((section) => (
+              <div key={section?.id} style={{ marginBottom: "32px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: "8px",
+                  }}
+                >
+                  <Title level={4} style={{ margin: 0 }}>
+                    {section?.name}
+                  </Title>
                 </div>
 
-                <Divider style={{ margin: "12px 0" }} />
-
-                {!question.answered ? (
-                  <Text type="secondary" italic>
-                    No response provided yet
-                  </Text>
-                ) : (
-                  <div style={{ fontSize: "14px" }} className="dark:bg-gray-900 dark:text-white">
-                    {question.type === "yesno" && question.answer && (
-                      <div className="dark:bg-gray-900 dark:text-white">
-                        <Text strong>Answer:</Text> {question.answer}
-                      </div>
-                    )}
-
-                    {question.type === "text" && question.textAnswer && (
-                      <div>
-                        <Text strong>Response:</Text> {question.textAnswer}
-                      </div>
-                    )}
-
-                    {question.tableData && question.tableData.length > 0 && (
-                      <div className="dark:bg-gray-900 dark:text-white">
-                        <Text strong>Data:</Text>
-                        <div style={{ marginTop: "4px", padding: "8px", borderRadius: "4px" }}>
-                          <table
-                            className="dark:bg-gray-900 dark:text-white"
-                            style={{ width: "100%", fontSize: "14px" }}
-                          >
-                            <thead>
-                              <tr
-                                className="dark:bg-gray-900 dark:text-white"
-                                style={{ textAlign: "left", fontSize: "12px" }}
-                              >
-                                <th style={{ paddingBottom: "4px" }}>Description</th>
-                                <th style={{ paddingBottom: "4px" }}>Amount</th>
-                                <th style={{ paddingBottom: "4px" }}>Account Code</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {question.tableData.map((row, idx) => (
-                                <tr key={idx} style={{ borderTop: "1px solid #f0f0f0" }}>
-                                  <td style={{ padding: "4px 0" }}>{row.description}</td>
-                                  <td style={{ padding: "4px 0", fontWeight: 500 }}>{row.amount}</td>
-                                  <td style={{ padding: "4px 0" }}>{row.accountCode}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-
-                    {question.files && question.files.length > 0 && (
-                      <div
-                        style={{ marginTop: question.tableData && question.tableData.length > 0 ? "12px" : "0" }}
-                      >
-                        <Text strong>Files:</Text>
-                        <div style={{ marginTop: "4px", display: "flex", flexDirection: "column", gap: "4px" }}>
-                          {question.files.map((file, idx) => (
-                            <div
-                              key={idx}
-                              style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px" }}
-                            >
-                              <PaperClipOutlined style={{ fontSize: "12px", color: "#bfbfbf" }} />
-                              <Text style={{ color: "#1890ff" }}>{file.name}</Text>
-                              <Tag style={{ fontSize: "small" }}>{file.category}</Tag>
-                              {file.explanation && (
-                                <Tooltip title={file.explanation}>
-                                  <InfoCircleOutlined style={{ fontSize: "12px", color: "#bfbfbf" }} />
-                                </Tooltip>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                {/* Render QueryDisplay for each question */}
+                {/* {section?.questions.map((question, idx) => (
+                  <div key={question.id} style={{ marginBottom: "16px" }}>
+                    <QueryDisplay
+                      questionNumber={question.number}
+                      questionText={question.text}
+                      previousAnswer={
+                        idx === 0
+                          ? { response: "Yes", details: "Completed all requirements on 30/05/2024" }
+                          : undefined
+                      }
+                      onSave={(data) => {
+                        handleSaveQuestion({
+                          ...question,
+                          ...data,
+                          sectionId: section.id,
+                          id: question.id,
+                        })
+                      }}
+                      onPost={(data) => {
+                        handlePostQuestion({
+                          ...question,
+                          ...data,
+                          sectionId: section.id,
+                          id: question.id,
+                        })
+                      }}
+                    />
                   </div>
-                )}
-              </div>
-            </Card>
-          </div>
-        </div>
-      ))}
-    </div>
-  ))
-) : (
-  <Card style={{ textAlign: "center", padding: "40px 0" }}>
-    <ExclamationCircleOutlined style={{ fontSize: "48px", color: "#d9d9d9", marginBottom: "16px" }} />
-    <Title level={4} style={{ margin: 0, color: "#666" }}>
-      No data found
-    </Title>
-    <Text type="secondary">
-      {searchTerm
-        ? `No questions match the search term "${searchTerm}"`
-        : "No questions match the selected filter"}
-    </Text>
-  </Card>
-)}
+                ))} */}
+                
+{section?.questions.map((question) => (
+  <div key={question.id} style={{ marginBottom: "16px" }}>
+    <div style={{ position: "relative", padding: "8px 0" }}>
+      {/* Add Progress Indicator */}
+      <div
+        style={{
+          position: "absolute",
+          top: "-22px",
+          right: "0px",
+          zIndex: 1,
+          padding: "4px 8px",
+          borderRadius: "4px",
+          display: "flex",
+          alignItems: "center",
+          gap: "4px",
+        }}
+      >
+        <ProgressIndicator progress={calculateProgress(question)} />
+      </div>
 
+      <QueryDisplay
+        questionNumber={question.number}
+        questionText={question.text}
+        previousAnswer={
+          question.status === "posted"
+            ? {
+                response: question.answer as "Yes" | "No" | "N/A",
+                details: question.textAnswer || "",
+              }
+            : undefined
+        }
+        onSave={(data) => {
+          handleSaveQuestion({
+            ...question,
+            ...data,
+            sectionId: section.id,
+            id: question.id,
+          })
+        }}
+        onPost={(data) => {
+          handlePostQuestion({
+            ...question,
+            ...data,
+            sectionId: section.id,
+            id: question.id,
+          })
+        }}
+      />
+    </div>
+  </div>
+))}
+              </div>
+            ))
+          ) : (
+            <Card style={{ textAlign: "center", padding: "40px 0" }}>
+              <ExclamationCircleOutlined style={{ fontSize: "48px", color: "#d9d9d9", marginBottom: "16px" }} />
+              <Title level={4} style={{ margin: 0, color: "#666" }}>
+                No data found
+              </Title>
+              <Text type="secondary">
+                {searchTerm
+                  ? `No questions match the search term "${searchTerm}"`
+                  : "No questions match the selected filter"}
+              </Text>
+            </Card>
+          )}
         </div>
       </div>
 
@@ -1548,13 +694,13 @@ const ClientQuestionaire = () => {
             </Text>
           </div>
           <Space>
-              <Button
+            <Button
               disabled={user_control.role !== "client" || activeTab !== "unanswered"}
               onClick={handleSaveAllDrafts}
             >
               Save All Drafts
             </Button>
-             <Button
+            <Button
               className="disabled:opacity-50 disabled:cursor-not-allowed disabled:text-zinc-900"
               disabled={user_control.role !== "client" || activeTab !== "draft"}
               type="primary"
@@ -1566,1331 +712,6 @@ const ClientQuestionaire = () => {
           </Space>
         </div>
       </div>
-
-      <Modal
-        title={null}
-        open={isModalOpen}
-        onCancel={handleCloseModal}
-        footer={null}
-        width={700}
-        closable={false}
-        className="question-modal"
-        bodyStyle={{ padding: 0 }}
-        style={{ top: 20 }}
-      >
-        {selectedQuestion && (
-          <div style={{ borderRadius: "8px", overflow: "hidden" }}>
-            <div
-              style={{
-                backgroundColor: "#0F3A47",
-                color: "white",
-                padding: "0.75rem 1rem",
-                position: "relative",
-                display: "flex",
-                alignItems: "center",
-              }}
-            >
-              <h2 style={{ color: "white", fontSize: "1.25rem", fontWeight: 500, margin: 0 }}>
-                {selectedQuestion.status === "draft" ? "Edit Draft" : "Answer Question"}
-              </h2>
-            </div>
-
-            <div>
-              {/* Section and Question Number */}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  padding: "0.75rem 1rem",
-                  background: "#f5f5f5",
-                  borderBottom: "1px solid #e8e8e8",
-                }}
-              >
-                <div>
-                  <span style={{ color: "#666", fontSize: "14px" }}>Section:</span>
-                  <div style={{ fontWeight: 500 }}>{selectedQuestion.sectionName}</div>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <span style={{ color: "#666", fontSize: "14px" }}>Question Number:</span>
-                  <div style={{ fontWeight: 500 }}>{selectedQuestion.number}</div>
-                </div>
-              </div>
-              <div style={{ padding: "1rem" }}>
-                <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>Question:</div>
-                <div
-                  style={{
-                    padding: "1rem",
-                    border: "1px solid #e8e8e8",
-                    borderRadius: "4px",
-                    background: "white",
-                  }}
-                >
-                  {selectedQuestion.text}
-                </div>
-              </div>
-
-              {/* Response Section based on question type */}
-              <div style={{ padding: "0 1rem 1rem" }}>
-                <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>Your Response:</div>
-
-                {selectedQuestion.type === "yesno" && (
-                  <Radio.Group
-                    onChange={(e) => setResponse(e.target.value)}
-                    value={response || selectedQuestion.answer}
-                    style={{ marginTop: "0.5rem" }}
-                  >
-                    <Space direction="vertical">
-                      <Radio value="Yes">Yes</Radio>
-                      <Radio value="No">No</Radio>
-                    </Space>
-                  </Radio.Group>
-                )}
-
-                {/* Text Question Type */}
-                {selectedQuestion.type === "text" && (
-                  <TextArea
-                    rows={4}
-                    placeholder="Enter your response here"
-                    value={response || selectedQuestion.textAnswer}
-                    onChange={(e) => setResponse(e.target.value)}
-                    style={{ marginTop: "0.5rem" }}
-                  />
-                )}
-
-                {selectedQuestion.type === "file" && (
-                  <div style={{ marginTop: "0.5rem" }}>
-                    <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>File Attachments:</div>
-
-                    <div
-                      style={{
-                        border: "1px solid #e8e8e8",
-                        borderRadius: "4px",
-                        padding: "1rem",
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        background: "white",
-                      }}
-                    >
-                      <div style={{ fontSize: "18px", color: "#d9d9d9", marginBottom: "4px" }}>+</div>
-                      <div style={{ color: "#666", marginBottom: "8px", fontSize: "13px" }}>Click to browse files</div>
-                      <Upload
-                        multiple
-                        onChange={(info) => {
-                          const newFileList = info.fileList.filter((file) => !file.status || file.status === "done")
-                          setFileList(newFileList)
-                        }}
-                        beforeUpload={() => false}
-                        fileList={[]}
-                        showUploadList={false}
-                      >
-                        <Button
-                          size="small"
-                          style={{ borderRadius: "4px", fontSize: "12px", height: "24px", padding: "0 8px" }}
-                        >
-                          Browse Files
-                        </Button>
-                      </Upload>
-                    </div>
-                    {fileList.length > 0 && (
-                      <div style={{ marginTop: "1rem" }}>
-                        <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>Uploaded Files:</div>
-                        <div>
-                          {fileList.map((file) => (
-                            <div
-                              key={file.uid}
-                              style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                                padding: "0.75rem",
-                                borderBottom: "1px solid #f0f0f0",
-                                background: "#f9f9f9",
-                                marginBottom: "4px",
-                              }}
-                            >
-                              <div style={{ display: "flex", alignItems: "center" }}>
-                                <PaperClipOutlined style={{ marginRight: "8px", color: "#1890ff" }} />
-                                <Text style={{ color: "#1890ff" }}>{file.name}</Text>
-                              </div>
-                              <div>
-                                <Button
-                                  type="text"
-                                  icon={<EyeOutlined />}
-                                  onClick={() => handleFileView(file)}
-                                  style={{ color: "green" }}
-                                />
-                                <Button
-                                  type="text"
-                                  icon={<DeleteOutlined />}
-                                  onClick={() => handleFileDelete(file)}
-                                  style={{ color: "red" }}
-                                />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {selectedQuestion.type === "table" && (
-                  <div style={{ marginTop: "0.5rem" }}>
-                    <div style={{ marginBottom: "0.5rem", display: "flex", justifyContent: "space-between" }}>
-                      <Text style={{ fontSize: "14px", fontWeight: 500 }}>Enter data in the table below:</Text>
-                      <Button
-                        type="primary"
-                        size="small"
-                        icon={<PlusOutlined />}
-                        onClick={handleAddTableRow}
-                        style={{ background: "#0F3A47" }}
-                      >
-                        Add Row
-                      </Button>
-                    </div>
-                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                      <thead>
-                        <tr style={{ background: "#f5f5f5" }}>
-                          <th style={{ padding: "8px", textAlign: "left", border: "1px solid #e8e8e8" }}>
-                            Description
-                          </th>
-                          <th style={{ padding: "8px", textAlign: "left", border: "1px solid #e8e8e8" }}>Amount</th>
-                          <th style={{ padding: "8px", textAlign: "left", border: "1px solid #e8e8e8" }}>
-                            Account Code
-                          </th>
-                          <th
-                            style={{ padding: "8px", textAlign: "center", border: "1px solid #e8e8e8", width: "60px" }}
-                          >
-                            Action
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {tableData.map((row, index) => (
-                          <tr key={row.key || index}>
-                            <td style={{ padding: "4px", border: "1px solid #e8e8e8" }}>
-                              <Input
-                                value={row.description}
-                                onChange={(e) =>
-                                  handleTableRowChange(row.key || `row-${index}`, "description", e.target.value)
-                                }
-                                placeholder="Enter description"
-                                style={{ border: "none" }}
-                              />
-                            </td>
-                            <td style={{ padding: "4px", border: "1px solid #e8e8e8" }}>
-                              <Input
-                                value={row.amount}
-                                onChange={(e) =>
-                                  handleTableRowChange(row.key || `row-${index}`, "amount", e.target.value)
-                                }
-                                placeholder="Enter amount"
-                                style={{ border: "none" }}
-                              />
-                            </td>
-                            <td style={{ padding: "4px", border: "1px solid #e8e8e8" }}>
-                              <Input
-                                value={row.accountCode}
-                                onChange={(e) =>
-                                  handleTableRowChange(row.key || `row-${index}`, "accountCode", e.target.value)
-                                }
-                                placeholder="Enter account code"
-                                style={{ border: "none" }}
-                              />
-                            </td>
-                            <td style={{ padding: "4px", border: "1px solid #e8e8e8", textAlign: "center" }}>
-                              <Button
-                                type="text"
-                                danger
-                                icon={<MinusCircleOutlined />}
-                                onClick={() => handleRemoveTableRow(row.key || `row-${index}`)}
-                                size="small"
-                              />
-                            </td>
-                          </tr>
-                        ))}
-                        {tableData.length === 0 && (
-                          <tr>
-                            <td colSpan={4} style={{ padding: "12px", textAlign: "center", border: "1px solid #e8e8e8" }}>
-                              No data. Click "Add Row" to add data.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-                {(selectedQuestion.type === "table" || selectedQuestion.type === "text") && (
-                  <div style={{ marginTop: "1rem" }}>
-                    <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>
-                      Attach supporting documents (optional):
-                    </div>
-                    <Upload
-                      multiple
-                      onChange={(info) => {
-                        // Only update fileList with files that have been successfully uploaded or are new
-                        const newFileList = info.fileList.filter((file) => !file.status || file.status === "done")
-                        setFileList(newFileList)
-                      }}
-                      beforeUpload={() => false}
-                      fileList={[]}
-                      showUploadList={false}
-                    >
-                      <Button icon={<UploadOutlined />} style={{ marginBottom: "0.5rem" }}>
-                        Select Files
-                      </Button>
-                      <Text style={{ marginLeft: "0.5rem", fontSize: "12px", color: "#666" }}>
-                        Supports PDF, Excel, Word, and image files
-                      </Text>
-                    </Upload>
-
-                    {/* Display uploaded files with view and delete options */}
-                    {fileList.length > 0 && (
-                      <div style={{ marginTop: "0.5rem" }}>
-                        <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>Uploaded Files:</div>
-                        <div style={{ border: "1px solid #e8e8e8", borderRadius: "4px", padding: "0.5rem" }}>
-                          {fileList.map((file) => (
-                            <div
-                              key={file.uid}
-                              style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                                padding: "0.5rem 0",
-                                borderBottom: "1px solid #f0f0f0",
-                              }}
-                            >
-                              <div style={{ display: "flex", alignItems: "center" }}>
-                                <PaperClipOutlined style={{ marginRight: "8px", color: "#1890ff" }} />
-                                <Text style={{ color: "#1890ff" }}>{file.name}</Text>
-                              </div>
-                              <div>
-                                <Button
-                                  type="text"
-                                  icon={<EyeOutlined />}
-                                  onClick={() => handleFileView(file)}
-                                  style={{ color: "green" }}
-                                />
-                                <Button
-                                  type="text"
-                                  icon={<DeleteOutlined />}
-                                  onClick={() => handleFileDelete(file)}
-                                  style={{ color: "red" }}
-                                />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Draft Notice */}
-              <div
-                style={{
-                  padding: "0.75rem 1rem",
-                  borderTop: "1px solid #f0f0f0",
-                  background: "#fffbe6",
-                  display: "flex",
-                  alignItems: "center",
-                }}
-              >
-                <WarningOutlined style={{ color: "#faad14", marginRight: "8px" }} />
-                <span style={{ color: "#d48806", fontSize: "14px" }}>
-                  {selectedQuestion.status === "draft"
-                    ? "This question is in draft mode. You can edit it multiple times before posting."
-                    : "Once you start editing, this question will be saved as a draft."}
-                </span>
-              </div>
-
-              {/* Footer buttons */}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  gap: "12px",
-                  borderTop: "1px solid #E2E8F0",
-                  padding: "0.75rem 1.5rem",
-                  background: "#FAFAFA",
-                }}
-              >
-                <Button
-                  onClick={handleCloseModal}
-                  style={{
-                    borderColor: "#E2E8F0",
-                    color: "#4A5568",
-                    height: "auto",
-                    padding: "4px 12px",
-                    borderRadius: "4px",
-                    fontSize: "14px",
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={() => handleQuestionSubmit("draft")}
-                //   disabled={(!isEditing && !isDraft) || user_control?.role !== "client" || isSubmitting}
-                // loading={isSubmitting}
-                  style={{
-                    borderColor: "#E2E8F0",
-                    color: "#4A5568",
-                    height: "auto",
-                    padding: "4px 12px",
-                    borderRadius: "4px",
-                    fontSize: "14px",
-                  }}
-                >
-                  Save as Draft
-                </Button>
-                <Button
-                  onClick={() => handleQuestionSubmit("post")}
-                  // loading={isSubmitting}
-                  //  disabled={(!isEditing && !isDraft) || user_control?.role !== "client" || isSubmitting}
-                  style={{
-                    backgroundColor: "#0F3A47",
-                    color: "white",
-                    borderColor: "#0F3A47",
-                    height: "auto",
-                    padding: "4px 12px",
-                    borderRadius: "4px",
-                    fontSize: "14px",
-                  }}
-                >
-                  Post
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      {/* Pen Modal (Respond to Query) */}
-      <Modal
-        title={null}
-        open={isPenModalOpen}
-        onCancel={handleCloseModal}
-        footer={null}
-        width={700}
-        closable={false}
-        className="pen-modal"
-        bodyStyle={{ padding: 0 }}
-        style={{ top: 20 }}
-      >
-        {selectedQuestion && (
-          <div style={{ borderRadius: "8px", overflow: "hidden" }}>
-            {/* Custom header */}
-            <div
-              style={{
-                backgroundColor: "#0F3A47",
-                color: "white",
-                padding: "0.75rem 1rem",
-                position: "relative",
-                display: "flex",
-                alignItems: "center",
-              }}
-            >
-              <h2 style={{ color: "white", fontSize: "1.25rem", fontWeight: 500, margin: 0 }}>Respond to Query</h2>
-            </div>
-
-            {/* Navigation bar */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: "0.75rem 1rem",
-                background: "#EBF8FF",
-                borderBottom: "1px solid #e8e8e8",
-              }}
-            >
-              <div style={{ color: "#4A5568", fontSize: "14px" }}>
-                Query {currentPenQuestionIndex + 1} of {allQueries.length}
-              </div>
-              <div style={{ display: "flex", gap: "10px" }}>
-                <Button
-                  icon={<ArrowLeftOutlined />}
-                  onClick={handlePreviousPenQuestion}
-                  disabled={currentPenQuestionIndex === 0}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    color: "#4A5568",
-                    borderColor: "#E2E8F0",
-                    borderRadius: "4px",
-                    padding: "4px 12px",
-                    height: "auto",
-                  }}
-                >
-                  <span style={{ marginLeft: "5px" }}>Previous</span>
-                </Button>
-                <Button
-                  onClick={handleNextPenQuestion}
-                  disabled={currentPenQuestionIndex === allQueries.length - 1}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    color: "#4A5568",
-                    borderColor: "#E2E8F0",
-                    borderRadius: "4px",
-                    padding: "4px 12px",
-                    height: "auto",
-                  }}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-
-            {/* Content area */}
-            <div>
-              {/* Section and Question Number */}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  padding: "0.75rem 1rem",
-                  background: "#f5f5f5",
-                  borderBottom: "1px solid #e8e8e8",
-                }}
-              >
-                <div>
-                  <span style={{ color: "#666", fontSize: "14px" }}>Section:</span>
-                  <div style={{ fontWeight: 500 }}>{selectedQuestion.sectionName}</div>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <span style={{ color: "#666", fontSize: "14px" }}>Question Number:</span>
-                  <div style={{ fontWeight: 500 }}>{selectedQuestion.number}</div>
-                </div>
-              </div>
-
-              {/* Question */}
-              <div style={{ padding: "1rem" }}>
-                <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>Question:</div>
-                <div
-                  style={{
-                    padding: "1rem",
-                    border: "1px solid #e8e8e8",
-                    borderRadius: "4px",
-                    background: "white",
-                  }}
-                >
-                  {selectedQuestion.text}
-                </div>
-              </div>
-
-              {/* Response Section based on question type */}
-              <div style={{ padding: "0 1rem 1rem" }}>
-                <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>Your Response:</div>
-
-                {/* Yes/No Question Type */}
-                {selectedQuestion.type === "yesno" && (
-                  <Radio.Group
-                    onChange={(e) => setResponse(e.target.value)}
-                    value={response || selectedQuestion.answer}
-                    style={{ marginTop: "0.5rem" }}
-                  >
-                    <Space direction="vertical">
-                      <Radio value="Yes">Yes</Radio>
-                      <Radio value="No">No</Radio>
-                    </Space>
-                  </Radio.Group>
-                )}
-
-                {/* Text Question Type */}
-                {selectedQuestion.type === "text" && (
-                  <TextArea
-                    rows={4}
-                    placeholder="Enter your response here"
-                    value={response || selectedQuestion.textAnswer}
-                    onChange={(e) => setResponse(e.target.value)}
-                    style={{ marginTop: "0.5rem" }}
-                  />
-                )}
-
-                {/* File Upload Question Type */}
-                {selectedQuestion.type === "file" && (
-                  <div style={{ marginTop: "0.5rem" }}>
-                    <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>File Attachments:</div>
-
-                    <div
-                      style={{
-                        border: "1px solid #e8e8e8",
-                        borderRadius: "4px",
-                        padding: "1rem",
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        background: "white",
-                      }}
-                    >
-                      <div style={{ fontSize: "18px", color: "#d9d9d9", marginBottom: "4px" }}>+</div>
-                      <div style={{ color: "#666", marginBottom: "8px", fontSize: "13px" }}>Click to browse files</div>
-                      <Upload
-                        multiple
-                        onChange={(info) => {
-                          // Only update fileList with files that have been successfully uploaded or are new
-                          const newFileList = info.fileList.filter((file) => !file.status || file.status === "done")
-                          setFileList(newFileList)
-                        }}
-                        beforeUpload={() => false}
-                        fileList={[]}
-                        showUploadList={false}
-                      >
-                        <Button
-                          size="small"
-                          style={{ borderRadius: "4px", fontSize: "12px", height: "24px", padding: "0 8px" }}
-                        >
-                          Browse Files
-                        </Button>
-                      </Upload>
-                    </div>
-
-                    {/* Display uploaded files with view and delete options */}
-                    {fileList.length > 0 && (
-                      <div style={{ marginTop: "1rem" }}>
-                        <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>Uploaded Files:</div>
-                        <div>
-                          {fileList.map((file) => (
-                            <div
-                              key={file.uid}
-                              style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                                padding: "0.75rem",
-                                borderBottom: "1px solid #f0f0f0",
-                                background: "#f9f9f9",
-                                marginBottom: "4px",
-                              }}
-                            >
-                              <div style={{ display: "flex", alignItems: "center" }}>
-                                <PaperClipOutlined style={{ marginRight: "8px", color: "#1890ff" }} />
-                                <Text style={{ color: "#1890ff" }}>{file.name}</Text>
-                              </div>
-                              <div>
-                                <Button
-                                  type="text"
-                                  icon={<EyeOutlined />}
-                                  onClick={() => handleFileView(file)}
-                                  style={{ color: "green" }}
-                                />
-                                <Button
-                                  type="text"
-                                  icon={<DeleteOutlined />}
-                                  onClick={() => handleFileDelete(file)}
-                                  style={{ color: "red" }}
-                                />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Table Question Type */}
-                {selectedQuestion.type === "table" && (
-                  <div style={{ marginTop: "0.5rem" }}>
-                    <div style={{ marginBottom: "0.5rem", display: "flex", justifyContent: "space-between" }}>
-                      <Text style={{ fontSize: "14px", fontWeight: 500 }}>Enter data in the table below:</Text>
-                      <Button
-                        type="primary"
-                        size="small"
-                        icon={<PlusOutlined />}
-                        onClick={handleAddTableRow}
-                        style={{ background: "#0F3A47" }}
-                      >
-                        Add Row
-                      </Button>
-                    </div>
-                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                      <thead>
-                        <tr style={{ background: "#f5f5f5" }}>
-                          <th style={{ padding: "8px", textAlign: "left", border: "1px solid #e8e8e8" }}>
-                            Description
-                          </th>
-                          <th style={{ padding: "8px", textAlign: "left", border: "1px solid #e8e8e8" }}>Amount</th>
-                          <th style={{ padding: "8px", textAlign: "left", border: "1px solid #e8e8e8" }}>
-                            Account Code
-                          </th>
-                          <th
-                            style={{ padding: "8px", textAlign: "center", border: "1px solid #e8e8e8", width: "60px" }}
-                          >
-                            Action
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {tableData.map((row, index) => (
-                          <tr key={row.key || index}>
-                            <td style={{ padding: "4px", border: "1px solid #e8e8e8" }}>
-                              <Input
-                                value={row.description}
-                                onChange={(e) =>
-                                  handleTableRowChange(row.key || `row-${index}`, "description", e.target.value)
-                                }
-                                placeholder="Enter description"
-                                style={{ border: "none" }}
-                              />
-                            </td>
-                            <td style={{ padding: "4px", border: "1px solid #e8e8e8" }}>
-                              <Input
-                                value={row.amount}
-                                onChange={(e) =>
-                                  handleTableRowChange(row.key || `row-${index}`, "amount", e.target.value)
-                                }
-                                placeholder="Enter amount"
-                                style={{ border: "none" }}
-                              />
-                            </td>
-                            <td style={{ padding: "4px", border: "1px solid #e8e8e8" }}>
-                              <Input
-                                value={row.accountCode}
-                                onChange={(e) =>
-                                  handleTableRowChange(row.key || `row-${index}`, "accountCode", e.target.value)
-                                }
-                                placeholder="Enter account code"
-                                style={{ border: "none" }}
-                              />
-                            </td>
-                            <td
-                              style={{
-                                padding: "4px",
-                                border: "1px solid #e8e8e8",
-                                textAlign: "center",
-                              }}
-                            >
-                              <Button
-                                type="text"
-                                danger
-                                icon={<MinusCircleOutlined />}
-                                onClick={() => handleRemoveTableRow(row.key || `row-${index}`)}
-                                size="small"
-                              />
-                            </td>
-                          </tr>
-                        ))}
-                        {tableData.length === 0 && (
-                          <tr>
-                            <td
-                              colSpan={4}
-                              style={{ padding: "12px", textAlign: "center", border: "1px solid #e8e8e8" }}
-                            >
-                              No data. Click "Add Row" to add data.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                {/* Optional file upload for table and text questions */}
-                {(selectedQuestion.type === "table" || selectedQuestion.type === "text") && (
-                  <div style={{ marginTop: "1rem" }}>
-                    <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>
-                      Attach supporting documents (optional):
-                    </div>
-                    <Upload
-                      multiple
-                      onChange={(info) => {
-                        // Only update fileList with files that have been successfully uploaded or are new
-                        const newFileList = info.fileList.filter((file) => !file.status || file.status === "done")
-                        setFileList(newFileList)
-                      }}
-                      beforeUpload={() => false}
-                      fileList={[]}
-                      showUploadList={false}
-                    >
-                      <Button icon={<UploadOutlined />} style={{ marginBottom: "0.5rem" }}>
-                        Select Files
-                      </Button>
-                      <Text style={{ marginLeft: "0.5rem", fontSize: "12px", color: "#666" }}>
-                        Supports PDF, Excel, Word, and image files
-                      </Text>
-                    </Upload>
-
-                    {/* Display uploaded files with view and delete options */}
-                    {fileList.length > 0 && (
-                      <div style={{ marginTop: "0.5rem" }}>
-                        <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>Uploaded Files:</div>
-                        <div style={{ border: "1px solid #e8e8e8", borderRadius: "4px", padding: "0.5rem" }}>
-                          {fileList.map((file) => (
-                            <div
-                              key={file.uid}
-                              style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                                padding: "0.5rem 0",
-                                borderBottom: "1px solid #f0f0f0",
-                              }}
-                            >
-                              <div style={{ display: "flex", alignItems: "center" }}>
-                                <PaperClipOutlined style={{ marginRight: "8px", color: "#1890ff" }} />
-                                <Text style={{ color: "#1890ff" }}>{file.name}</Text>
-                              </div>
-                              <div>
-                                <Button
-                                  type="text"
-                                  icon={<EyeOutlined />}
-                                  onClick={() => handleFileView(file)}
-                                  style={{ color: "green" }}
-                                />
-                                <Button
-                                  type="text"
-                                  icon={<DeleteOutlined />}
-                                  onClick={() => handleFileDelete(file)}
-                                  style={{ color: "red" }}
-                                />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Draft Notice */}
-              <div
-                style={{
-                  padding: "0.75rem 1rem",
-                  borderTop: "1px solid #f0f0f0",
-                  background: "#fffbe6",
-                  display: "flex",
-                  alignItems: "center",
-                }}
-              >
-                <WarningOutlined style={{ color: "#faad14", marginRight: "8px" }} />
-                <span style={{ color: "#d48806", fontSize: "14px" }}>
-                  {selectedQuestion.status === "draft"
-                    ? "This question is in draft mode. You can edit it multiple times before posting."
-                    : "Once you start editing, this question will be saved as a draft."}
-                </span>
-              </div>
-
-              {/* Footer buttons */}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  gap: "12px",
-                  borderTop: "1px solid #E2E8F0",
-                  padding: "0.75rem 1.5rem",
-                  background: "#FAFAFA",
-                }}
-              >
-                <Button
-                  onClick={handleCloseModal}
-                  style={{
-                    borderColor: "#E2E8F0",
-                    color: "#4A5568",
-                    height: "auto",
-                    padding: "4px 12px",
-                    borderRadius: "4px",
-                    fontSize: "14px",
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={() => handlePenModalSubmit("draft")}
-                  style={{
-                    borderColor: "#E2E8F0",
-                    color: "#4A5568",
-                    height: "auto",
-                    padding: "4px 12px",
-                    borderRadius: "4px",
-                    fontSize: "14px",
-                  }}
-                >
-                  Save as Draft
-                </Button>
-                <Button
-                  onClick={() => handlePenModalSubmit("post")}
-                  style={{
-                    backgroundColor: "#0F3A47",
-                    color: "white",
-                    borderColor: "#0F3A47",
-                    height: "auto",
-                    padding: "4px 12px",
-                    borderRadius: "4px",
-                    fontSize: "14px",
-                  }}
-                >
-                  Post
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      {/* Respond to Queries Modal */}
-      <Modal
-        title={null}
-        open={visible}
-        onCancel={handleCloseModal}
-        footer={null}
-        width={600}
-        closable={false}
-        className="respond-modal"
-        bodyStyle={{ padding: 0 }}
-        style={{ top: 20 }}
-      >
-        {query && (
-          <div style={{ borderRadius: "8px", overflow: "hidden" }}>
-            {/* Custom header */}
-            <div
-              style={{
-                backgroundColor: "#0F3A47",
-                color: "white",
-                padding: "1rem 1.5rem",
-                position: "relative",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
-              <h2 style={{ color: "white", fontSize: "1.5rem", fontWeight: 500, margin: 0 }}>Respond to Query</h2>
-            </div>
-
-            {/* Navigation bar */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: "0.75rem 1rem",
-                background: "#EBF8FF",
-                borderBottom: "1px solid #e8e8e8",
-              }}
-            >
-              <div style={{ color: "#4A5568", fontSize: "16px" }}>
-                Query {query.index} of {query.total}
-              </div>
-              <div style={{ display: "flex", gap: "10px" }}>
-                <Button
-                  icon={<ArrowLeftOutlined />}
-                  onClick={handlePreviousQuery}
-                  disabled={query.index === 1}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    color: "#4A5568",
-                    borderColor: "#E2E8F0",
-                    borderRadius: "4px",
-                    padding: "4px 12px",
-                    height: "auto",
-                  }}
-                >
-                  <span style={{ marginLeft: "5px" }}>Previous</span>
-                </Button>
-                <Button
-                  onClick={handleNextQuery}
-                  disabled={query.index === query.total}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    color: "#4A5568",
-                    borderColor: "#E2E8F0",
-                    borderRadius: "4px",
-                    padding: "4px 12px",
-                    height: "auto",
-                  }}
-                >
-                  Next <ArrowLeftOutlined style={{ marginLeft: "5px", transform: "rotate(180deg)" }} />
-                </Button>
-              </div>
-            </div>
-
-            {/* Content area */}
-            <div>
-              {/* Query */}
-              <div style={{ padding: "1rem" }}>
-                <div
-                  style={{
-                    marginBottom: "0.5rem",
-                    color: "#666",
-                    fontSize: "14px",
-                    display: "flex",
-                    alignItems: "center",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: "24px",
-                      height: "24px",
-                      borderRadius: "50%",
-                      background: "#E6E6FA",
-                      display: "flex",
-                      justifyContent: "center",
-                      alignItems: "center",
-                      marginRight: "8px",
-                    }}
-                  >
-                    <span style={{ color: "#6A5ACD" }}>💬</span>
-                  </div>
-                  <span style={{ fontWeight: 500 }}>Query</span>
-                </div>
-                <div
-                  style={{
-                    padding: "1rem",
-                    border: "1px solid #e8e8e8",
-                    borderRadius: "4px",
-                    background: "#F0F8FF",
-                    marginBottom: "1.5rem",
-                  }}
-                >
-                  {query.description}
-                </div>
-              </div>
-
-              {/* Response Section based on question type */}
-              <div style={{ padding: "0 1rem 1rem" }}>
-                {/* Yes/No Question Type */}
-                {query.type === "yesno" && (
-                  <div>
-                    <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>Your Response:</div>
-                    <Radio.Group
-                      onChange={(e) => setResponse(e.target.value)}
-                      value={response || query.answer}
-                      style={{ marginTop: "0.5rem" }}
-                    >
-                      <Space direction="vertical">
-                        <Radio value="Yes">Yes</Radio>
-                        <Radio value="No">No</Radio>
-                      </Space>
-                    </Radio.Group>
-                  </div>
-                )}
-
-                {/* Text Question Type */}
-                {query.type === "text" && (
-                  <div>
-                    <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>Your Response:</div>
-                    <TextArea
-                      rows={4}
-                      placeholder="Enter your response here"
-                      value={response || query.textAnswer}
-                      onChange={(e) => setResponse(e.target.value)}
-                      style={{ marginTop: "0.5rem" }}
-                    />
-                  </div>
-                )}
-
-                {/* File Upload Question Type */}
-                {query.type === "file" && (
-                  <div style={{ marginTop: "0.5rem" }}>
-                    <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>File Attachments:</div>
-
-                    <div
-                      style={{
-                        border: "1px solid #e8e8e8",
-                        borderRadius: "4px",
-                        padding: "1rem",
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        background: "white",
-                      }}
-                    >
-                      <div style={{ fontSize: "18px", color: "#d9d9d9", marginBottom: "4px" }}>+</div>
-                      <div style={{ color: "#666", marginBottom: "8px", fontSize: "13px" }}>Click to browse files</div>
-                      <Upload
-                        multiple
-                        onChange={(info) => {
-                          // Only update fileList with files that have been successfully uploaded or are new
-                          const newFileList = info.fileList.filter((file) => !file.status || file.status === "done")
-                          setFileList(newFileList)
-                        }}
-                        beforeUpload={() => false}
-                        fileList={[]}
-                        showUploadList={false}
-                      >
-                        <Button
-                          size="small"
-                          style={{ borderRadius: "4px", fontSize: "12px", height: "24px", padding: "0 8px" }}
-                        >
-                          Browse Files
-                        </Button>
-                      </Upload>
-                    </div>
-
-                    {/* Display uploaded files with view and delete options */}
-                    {fileList.length > 0 && (
-                      <div style={{ marginTop: "1rem" }}>
-                        <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>Uploaded Files:</div>
-                        <div>
-                          {fileList.map((file) => (
-                            <div
-                              key={file.uid}
-                              style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                                padding: "0.75rem",
-                                borderBottom: "1px solid #f0f0f0",
-                                background: "#f9f9f9",
-                                marginBottom: "4px",
-                              }}
-                            >
-                              <div style={{ display: "flex", alignItems: "center" }}>
-                                <PaperClipOutlined style={{ marginRight: "8px", color: "#1890ff" }} />
-                                <Text style={{ color: "#1890ff" }}>{file.name}</Text>
-                              </div>
-                              <div>
-                                <Button
-                                  type="text"
-                                  icon={<EyeOutlined />}
-                                  onClick={() => handleFileView(file)}
-                                  style={{ color: "green" }}
-                                />
-                                <Button
-                                  type="text"
-                                  icon={<DeleteOutlined />}
-                                  onClick={() => handleFileDelete(file)}
-                                  style={{ color: "red" }}
-                                />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Table Question Type */}
-                {query.type === "table" && (
-                  <div style={{ marginTop: "0.5rem" }}>
-                    <div style={{ marginBottom: "0.5rem", display: "flex", justifyContent: "space-between" }}>
-                      <Text style={{ fontSize: "14px", fontWeight: 500 }}>Enter data in the table below:</Text>
-                      <Button
-                        type="primary"
-                        size="small"
-                        icon={<PlusOutlined />}
-                        onClick={handleAddTableRow}
-                        style={{ background: "#0F3A47" }}
-                      >
-                        Add Row
-                      </Button>
-                    </div>
-                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                      <thead>
-                        <tr style={{ background: "#f5f5f5" }}>
-                          <th style={{ padding: "8px", textAlign: "left", border: "1px solid #e8e8e8" }}>
-                            Description
-                          </th>
-                          <th style={{ padding: "8px", textAlign: "left", border: "1px solid #e8e8e8" }}>Amount</th>
-                          <th style={{ padding: "8px", textAlign: "left", border: "1px solid #e8e8e8" }}>
-                            Account Code
-                          </th>
-                          <th
-                            style={{ padding: "8px", textAlign: "center", border: "1px solid #e8e8e8", width: "60px" }}
-                          >
-                            Action
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {tableData.map((row, index) => (
-                          <tr key={row.key || index}>
-                            <td style={{ padding: "4px", border: "1px solid #e8e8e8" }}>
-                              <Input
-                                value={row.description}
-                                onChange={(e) =>
-                                  handleTableRowChange(row.key || `row-${index}`, "description", e.target.value)
-                                }
-                                placeholder="Enter description"
-                                style={{ border: "none" }}
-                              />
-                            </td>
-                            <td style={{ padding: "4px", border: "1px solid #e8e8e8" }}>
-                              <Input
-                                value={row.amount}
-                                onChange={(e) =>
-                                  handleTableRowChange(row.key || `row-${index}`, "amount", e.target.value)
-                                }
-                                placeholder="Enter amount"
-                                style={{ border: "none" }}
-                              />
-                            </td>
-                            <td style={{ padding: "4px", border: "1px solid #e8e8e8" }}>
-                              <Input
-                                value={row.accountCode}
-                                onChange={(e) =>
-                                  handleTableRowChange(row.key || `row-${index}`, "accountCode", e.target.value)
-                                }
-                                placeholder="Enter account code"
-                                style={{ border: "none" }}
-                              />
-                            </td>
-                            <td
-                              style={{
-                                padding: "4px",
-                                border: "1px solid #e8e8e8",
-                                textAlign: "center",
-                              }}
-                            >
-                              <Button
-                                type="text"
-                                danger
-                                icon={<MinusCircleOutlined />}
-                                onClick={() => handleRemoveTableRow(row.key || `row-${index}`)}
-                                size="small"
-                              />
-                            </td>
-                          </tr>
-                        ))}
-                        {tableData.length === 0 && (
-                          <tr>
-                            <td
-                              colSpan={4}
-                              style={{ padding: "12px", textAlign: "center", border: "1px solid #e8e8e8" }}
-                            >
-                              No data. Click "Add Row" to add data.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                {/* Optional file upload for table questions */}
-                {query.type === "table" && (
-                  <div style={{ marginTop: "1rem" }}>
-                    <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>
-                      Attach supporting documents (optional):
-                    </div>
-                    <Upload
-                      multiple
-                      onChange={(info) => {
-                        // Only update fileList with files that have been successfully uploaded or are new
-                        const newFileList = info.fileList.filter((file) => !file.status || file.status === "done")
-                        setFileList(newFileList)
-                      }}
-                      beforeUpload={() => false}
-                      fileList={[]}
-                      showUploadList={false}
-                    >
-                      <Button icon={<UploadOutlined />} style={{ marginBottom: "0.5rem" }}>
-                        Select Files
-                      </Button>
-                      <Text style={{ marginLeft: "0.5rem", fontSize: "12px", color: "#666" }}>
-                        Supports PDF, Excel, Word, and image files
-                      </Text>
-                    </Upload>
-
-                    {/* Display uploaded files with view and delete options */}
-                    {fileList.length > 0 && (
-                      <div style={{ marginTop: "0.5rem" }}>
-                        <div style={{ marginBottom: "0.5rem", color: "#666", fontSize: "14px" }}>Uploaded Files:</div>
-                        <div style={{ border: "1px solid #e8e8e8", borderRadius: "4px", padding: "0.5rem" }}>
-                          {fileList.map((file) => (
-                            <div
-                              key={file.uid}
-                              style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                                padding: "0.5rem 0",
-                                borderBottom: "1px solid #f0f0f0",
-                              }}
-                            >
-                              <div style={{ display: "flex", alignItems: "center" }}>
-                                <PaperClipOutlined style={{ marginRight: "8px", color: "#1890ff" }} />
-                                <Text style={{ color: "#1890ff" }}>{file.name}</Text>
-                              </div>
-                              <div>
-                                <Button
-                                  type="text"
-                                  icon={<EyeOutlined />}
-                                  onClick={() => handleFileView(file)}
-                                  style={{ color: "green" }}
-                                />
-                                <Button
-                                  type="text"
-                                  icon={<DeleteOutlined />}
-                                  onClick={() => handleFileDelete(file)}
-                                  style={{ color: "red" }}
-                                />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Footer buttons */}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  gap: "12px",
-                  borderTop: "1px solid #E2E8F0",
-                  padding: "0.75rem 1.5rem",
-                  background: "#FAFAFA",
-                }}
-              >
-                <Button
-                  onClick={handleCloseModal}
-                  style={{
-                    borderColor: "#E2E8F0",
-                    color: "#4A5568",
-                    height: "auto",
-                    padding: "4px 12px",
-                    borderRadius: "4px",
-                    fontSize: "14px",
-                  }}
-                >
-                  Close
-                </Button>
-                <Button
-                  onClick={() => handleSubmit("draft")}
-                  style={{
-                    borderColor: "#E2E8F0",
-                    color: "#4A5568",
-                    height: "auto",
-                    padding: "4px 12px",
-                    borderRadius: "4px",
-                    fontSize: "14px",
-                  }}
-                >
-                  Save as Draft
-                </Button>
-                <Button
-                  onClick={() => handleSubmit("post")}
-                  style={{
-                    backgroundColor: "#0F3A47",
-                    color: "white",
-                    borderColor: "#0F3A47",
-                    height: "auto",
-                    padding: "4px 12px",
-                    borderRadius: "4px",
-                    fontSize: "14px",
-                  }}
-                >
-                  Post
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-      </Modal>
     </div>
   )
 }

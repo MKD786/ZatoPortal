@@ -1,6 +1,6 @@
 import type React from "react"
 import { Link } from "react-router-dom"
-import { TeamOutlined, HistoryOutlined, UserOutlined, QuestionCircleOutlined,
+import { TeamOutlined, UserOutlined,
   //  QuestionCircleOutlined 
   } from "@ant-design/icons"
 // import { useSelector } from "react-redux"
